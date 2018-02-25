@@ -325,6 +325,7 @@ _create_ref_branch() {
 
   git branch -D "$ref_branch" &>/dev/null
 
+  _remove_ref_commit_message "$ref" "GIT_MULTI_BRANCH="
   _append_ref_commit_message "$ref" "GIT_MULTI_BRANCH=$ref_branch"
 
   local sha="$(_get_sha $ref)"
@@ -392,17 +393,18 @@ _create_ref_pr() {
   fi
   local remote_branch="$(_get_remote_ref_branch $ref_branch)"
 
-  if [ -z "$pr_url" ]; then
+  if [ -z "$pr_url" ] || _is_closed_issue "$pr_url"; then
     echo "> ok.sh create_pull_request \"$repo_org/$repo_name\" \"$title\" \"$remote_branch\" \"$prev_remote_branch\" body=\"$body\""
     local response="$(ok.sh create_pull_request "$repo_org/$repo_name" "$title" "$remote_branch" "$prev_remote_branch" body="$body")"
 
     pr_url="$(echo "$response" | cut -f2)"
+    _remove_ref_commit_message "$ref" "PR="
     _append_ref_commit_message "$ref" "PR=$pr_url"
   else
     echo "Found existing PR #$number for $ref_branch."
 
-    echo "> ok.sh update_pull_request \"$repo_org/$repo_name\" \"$number\" title=\"$title\" body=\"$body\" base=\"$prev_remote_branch\""
-    ok.sh update_pull_request "$repo_org/$repo_name" "$number" title="$title" body="$body" base="$prev_remote_branch"
+    echo "> ok.sh update_pull_request \"$repo_org/$repo_name\" \"$number\" title=\"$title\" body=\"$body\" base=\"$prev_remote_branch\" state=\"open\""
+    ok.sh update_pull_request "$repo_org/$repo_name" "$number" title="$title" body="$body" base="$prev_remote_branch" state="open"
   fi
 
 }
@@ -435,6 +437,25 @@ _get_repo_name() {
 
   local repo_name_index="$(($count-1))"
   echo "${repo_components[$repo_name_index]}"
+}
+
+_is_closed_issue() {
+  local issue_url="$1"
+
+  local repo_org="$(_get_repo_org)"
+  local repo_name="$(_get_repo_name)"
+  local number="$(basename "$issue_url")"
+
+  local filter='"\(.number)\t\(.state)"'
+
+  local response="$(ok.sh _get "/repos/$repo_org/$repo_name/issues/$number" | ok.sh _filter_json "${filter}")"
+  local state="$(echo "$response" | cut -f2)"
+
+  if [[ "$state" == "closed" ]]; then
+    true
+  else
+    false
+  fi
 }
 
 _get_ref_branch_name() {
@@ -522,6 +543,9 @@ case "$1" in
   _append_ref_commit_message)    _append_ref_commit_message "${@:2}" ;;
   _remove_ref_commit_message)    _remove_ref_commit_message "${@:2}" ;;
   _create_ref_pr)                _create_ref_pr "${@:2}" ;;
+  _cleanup_ref_branches)         _cleanup_ref_branches "${@:2}" ;;
+  _is_open_issue)                _is_open_issue "${@:2}" ;;
+
 
   # Help
   *)                             usage ;;
