@@ -55,7 +55,75 @@ _print_augmented_queue() {
 
 sync_queue() {
   git fetch origin
-  git rebase origin/master
+  git rebase "origin/$master"
+
+  _cleanup_ref_branches "_git-multi-pr-"
+}
+
+_cleanup_ref_branches() {
+  local prefix="$1"
+
+  local current_branch="$(git symbolic-ref --short -q HEAD)"
+  local empty_branches=()
+
+  # Ensure clean branch.
+  git diff-index --quiet HEAD -- || { echo "$current_branch has uncommitted changes. Exiting."; return 1; }
+
+  if [ -z "$prefix" ]; then
+    local filter="refs/heads/"
+  else
+    local filter="refs/heads/$prefix*"
+  fi
+
+  echo "Checking for empty branches..."
+  for branch in $(git for-each-ref --format='%(refname:short)' $filter); do
+    git checkout "$branch" &>/dev/null
+    git rebase "origin/$master" &>/dev/null
+
+    # A conflict means local commits exist.
+    git diff-index --quiet HEAD -- || { git rebase --abort; continue; }
+
+    local commits=$(git rev-list --abbrev-commit origin/$master..HEAD)
+    if [ -z "$commits" ] && [ "$branch" != "$master" ]; then
+      empty_branches+=("$branch")
+    fi
+  done
+
+  if [ "${#empty_branches[@]}" -eq 0 ]; then
+    echo "Didn't find any empty branches. Exiting."
+    git checkout "$current_branch" &>/dev/null
+    return 0
+  fi
+
+  echo "Found empty branches:"
+  printf '  %s\n' "${empty_branches[@]}"
+
+  if [ -z "$prefix" ]; then
+    echo
+    echo "Delete these empty branches? [y/N]: "
+    read prompt
+    echo
+  else
+    local prompt="y"
+  fi
+
+  case "$prompt" in
+    y | Y)
+      echo "Cleaning up..."
+      ;;
+    *)
+      echo "Cleanup cancelled. Exiting."
+      git checkout "$current_branch" &>/dev/null
+      return 1
+      ;;
+  esac
+
+  git checkout "$master" &>/dev/null
+  for branch in "${empty_branches[@]}"; do
+    git branch -D "$branch" &>/dev/null
+  done
+
+  git checkout "$current_branch" &>/dev/null
 }
 
 edit_ref() {
@@ -311,6 +379,8 @@ _create_ref_pr() {
 
   local repo_org="$(_get_repo_org)"
   local repo_name="$(_get_repo_name)"
+  local pr_url="$(_get_ref_pr_url "$ref")"
+  local number="$(basename "$pr_url")"
 
   local title="$(git log -n 1 --pretty=format:%s "$ref")"
   local body="$(git log -n 1 --pretty=format:%b "$ref")"
@@ -322,7 +392,6 @@ _create_ref_pr() {
   fi
   local remote_branch="$(_get_remote_ref_branch $ref_branch)"
 
-  local pr_url="$(_get_ref_pr_url "$ref")"
   if [ -z "$pr_url" ]; then
     echo "> ok.sh create_pull_request \"$repo_org/$repo_name\" \"$title\" \"$remote_branch\" \"$prev_remote_branch\" body=\"$body\""
     local response="$(ok.sh create_pull_request "$repo_org/$repo_name" "$title" "$remote_branch" "$prev_remote_branch" body="$body")"
@@ -330,8 +399,6 @@ _create_ref_pr() {
     pr_url="$(echo "$response" | cut -f2)"
     _append_ref_commit_message "$ref" "PR=$pr_url"
   else
-    local number="$(basename "$pr_url")"
-
     echo "Found existing PR #$number for $ref_branch."
 
     echo "> ok.sh update_pull_request \"$repo_org/$repo_name\" \"$number\" title=\"$title\" body=\"$body\" base=\"$prev_remote_branch\""
@@ -393,36 +460,39 @@ _get_ref_pr_url() {
 }
 
 submit_pr() {
-  local sha="$(_get_sha $1)";
-  local flags="$@"
-  if [[ ! -z "$sha" ]]; then
-    flags="${@:2}"
-  fi
+  git fetch origin &>/dev/null
 
-  # Default to BASE.
-  if [[ -z "$sha" ]]; then
-    sha="$(_get_sha BASE)"
-  fi
+  local refs="$(git rev-list --abbrev-commit --reverse origin/"$master"..)"
+  local IFS=$'\n' refs_array=($refs)
+  local ref="${refs_array[0]}"
 
-  if [[ -z "$sha" ]]; then
-    echo "No local commits available." 1>&2
-    exit 1
-  fi
+  echo
+  echo "The next commit to be submitted is:"
+  git log -n 1 --oneline --color "$ref"
 
-  if [ "$(git rev-list --abbrev-commit origin/$master..HEAD | wc -l)" -gt "1" ]; then
-    echo "Running 'arc land $flags --keep-branch $sha'"
-    arc land $flags --keep-branch "$sha"
-  else
-    echo "Running 'arc land $flags'"
-    arc land $flags
-  fi
+  echo "If this is not what you want to submit, then reorder your local history first."
+  echo "Do you want to submit $ref? [y/N]: "
+  read prompt
+  echo
 
-  if [ $? -eq 0 ]; then
-    echo "Submitted successfully. Syncing to latest."
-    sync_queue
-  fi
+  case "$prompt" in
+    y | Y)
+      local repo_org="$(_get_repo_org)"
+      local repo_name="$(_get_repo_name)"
+      local pr_url="$(_get_ref_pr_url "$ref")"
+      local number="$(basename "$pr_url")"
 
-  print_queue
+      echo "> ok.sh add_comment \"$repo_org/$repo_name\" \"$number\" \":dash:\""
+      ok.sh add_comment "$repo_org/$repo_name" "$number" ":dash:"
+
+      echo "Check $pr_url for the status on your submission."
+      echo "When it is merged into master, sync your local queue."
+      ;;
+    *)
+      echo "Submit cancelled. Exiting."
+      return 1
+      ;;
+  esac
 }
 
 case "$1" in
