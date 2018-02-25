@@ -61,7 +61,8 @@ sync_queue() {
 edit_ref() {
   _edit_ref "$@"
 
-  print_queue
+  echo
+  echo "Remember to continue the rebase after you make your changes."
 }
 
 _edit_ref() {
@@ -85,12 +86,18 @@ _edit_ref() {
 continue_rebase() {
   _continue_rebase "$@"
 
+  # Detect conflict.
+  git diff-index --quiet HEAD -- || {
+    echo "Resolve the conflicts and continue the rebase again."
+    return 0
+  }
+
   print_queue
 }
 
 _continue_rebase() {
   echo "Exiting rebase."
-  git rebase --continue &>/dev/null
+  git rebase --continue
 }
 
 abort_rebase() {
@@ -101,7 +108,7 @@ abort_rebase() {
 
 _abort_rebase() {
   echo "Aborting rebase."
-  git rebase --abort &>/dev/null
+  git rebase --abort
 }
 
 _get_sha() {
@@ -178,7 +185,7 @@ export_prs() {
     _create_ref_branch "$prev_ref_branch" "$ref_branch" "$ref"
 
     # Create PR.
-    _create_ref_pr "$prev_ref_branch" "$ref_branch"
+    _create_ref_pr "$prev_ref_branch" "$ref_branch" "$ref"
 
     i="$(($i-1))"
     prev_ref_branch="$ref_branch"
@@ -243,6 +250,8 @@ _create_ref_branch() {
   local ref_branch="$2"
   local ref="$3"
 
+  local branch="$(git symbolic-ref --short -q HEAD)"
+
   echo
   echo "Creating branch $ref_branch for commit at $ref."
 
@@ -257,7 +266,9 @@ _create_ref_branch() {
   git cherry-pick "$sha"
 
   local remote_branch="$(_get_remote_ref_branch $ref_branch)"
-  git push --force-with-lease origin "$ref_branch:$remote_branch"
+  git push -f origin "$ref_branch:$remote_branch"
+
+  git checkout "$branch" &>/dev/null
 }
 
 _append_ref_commit_message() {
@@ -296,31 +307,35 @@ _create_ref_pr() {
 
   local prev_ref_branch="$1"
   local ref_branch="$2"
+  local ref="$3"
 
   local repo_org="$(_get_repo_org)"
   local repo_name="$(_get_repo_name)"
 
-  local title="$(git log -n 1 --pretty=format:%s HEAD)"
-  local body="$(git log -n 1 --pretty=format:%b HEAD)"
+  local title="$(git log -n 1 --pretty=format:%s "$ref")"
+  local body="$(git log -n 1 --pretty=format:%b "$ref")"
 
-  local pr_url="$(_get_ref_pr_url HEAD)"
+  if [[ "$prev_ref_branch" == "origin/$master" ]]; then
+    local prev_remote_branch="master"
+  else
+    local prev_remote_branch="$(_get_remote_ref_branch $prev_ref_branch)"
+  fi
+  local remote_branch="$(_get_remote_ref_branch $ref_branch)"
+
+  local pr_url="$(_get_ref_pr_url "$ref")"
   if [ -z "$pr_url" ]; then
-    if [[ "$prev_ref_branch" == "origin/$master" ]]; then
-      local prev_remote_branch="master"
-    else
-      local prev_remote_branch="$(_get_remote_ref_branch $prev_ref_branch)"
-    fi
-    local remote_branch="$(_get_remote_ref_branch $ref_branch)"
+    echo "> ok.sh create_pull_request \"$repo_org/$repo_name\" \"$title\" \"$remote_branch\" \"$prev_remote_branch\" body=\"$body\""
+    local response="$(ok.sh create_pull_request "$repo_org/$repo_name" "$title" "$remote_branch" "$prev_remote_branch" body="$body")"
 
-    echo "ok.sh create_pull_request "$repo_org/$repo_name" "$title" "$remote_branch" "$prev_remote_branch" body="$body""
-    ok.sh create_pull_request "$repo_org/$repo_name" "$title" "$remote_branch" "$prev_remote_branch" body="$body"
+    pr_url="$(echo "$response" | cut -f2)"
+    _append_ref_commit_message "$ref" "PR=$pr_url"
   else
     local number="$(basename "$pr_url")"
 
     echo "Found existing PR #$number for $ref_branch."
 
-    echo "ok.sh update_pull_request "$repo_org/$repo_name" "$number" title="$title" body="$body""
-    ok.sh update_pull_request "$repo_org/$repo_name" "$number" title="$title" body="$body"
+    echo "> ok.sh update_pull_request \"$repo_org/$repo_name\" \"$number\" title=\"$title\" body=\"$body\" base=\"$prev_remote_branch\""
+    ok.sh update_pull_request "$repo_org/$repo_name" "$number" title="$title" body="$body" base="$prev_remote_branch"
   fi
 
 }
