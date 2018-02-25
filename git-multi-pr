@@ -178,7 +178,7 @@ export_prs() {
     _create_ref_branch "$prev_ref_branch" "$ref_branch" "$ref"
 
     # Create PR.
-    _create_ref_pr "$prev_ref_branch" "$ref_branch" "$ref"
+    _create_ref_pr "$prev_ref_branch" "$ref_branch"
 
     i="$(($i-1))"
     prev_ref_branch="$ref_branch"
@@ -284,11 +284,6 @@ _remove_ref_commit_message() {
 _get_remote_ref_branch() {
   local ref_branch="$1"
 
-  if [[ "$ref_branch" == "$master" ]] || [[ "$ref_branch" == "origin/$master" ]]; then
-    echo "origin/master"
-    return 0
-  fi
-
   local email="$(git config user.email)"
   local username="${email%@*}"
 
@@ -301,28 +296,31 @@ _create_ref_pr() {
 
   local prev_ref_branch="$1"
   local ref_branch="$2"
-  local ref="$3"
 
   local repo_org="$(_get_repo_org)"
   local repo_name="$(_get_repo_name)"
 
-  local title="$(git log -n 1 --pretty=format:%s "$ref")"
-  local body="$(git log -n 1 --pretty=format:%b "$ref")"
+  local title="$(git log -n 1 --pretty=format:%s HEAD)"
+  local body="$(git log -n 1 --pretty=format:%b HEAD)"
 
-  local pr_url="$(_get_ref_pr_url $ref)"
+  local pr_url="$(_get_ref_pr_url HEAD)"
   if [ -z "$pr_url" ]; then
-    local prev_remote_branch="$(_get_remote_ref_branch $prev_ref_branch)"
+    if [[ "$prev_ref_branch" == "origin/$master" ]]; then
+      local prev_remote_branch="master"
+    else
+      local prev_remote_branch="$(_get_remote_ref_branch $prev_ref_branch)"
+    fi
     local remote_branch="$(_get_remote_ref_branch $ref_branch)"
 
-    echo "ok.sh create_pull_request "\"$repo_org/$repo_name\"" "\"$title\"" "\"$remote_branch\"" "\"$prev_remote_branch\"" "body=\"$body\"""
-    ok.sh create_pull_request "\"$repo_org/$repo_name\"" "\"$title\"" "\"$remote_branch\"" "\"$prev_remote_branch\"" "body=\"$body\""
+    echo "ok.sh create_pull_request "$repo_org/$repo_name" "$title" "$remote_branch" "$prev_remote_branch" body="$body""
+    ok.sh create_pull_request "$repo_org/$repo_name" "$title" "$remote_branch" "$prev_remote_branch" body="$body"
   else
     local number="$(basename "$pr_url")"
 
     echo "Found existing PR #$number for $ref_branch."
 
-    echo "ok.sh update_pull_request "\"$repo_org/$repo_name\"" "\"$number\"" "title=\"$title\"" "body=\"$body\"""
-    ok.sh update_pull_request "\"$repo_org/$repo_name\"" "\"$number\"" "title=\"$title\"" "body=\"$body\""
+    echo "ok.sh update_pull_request "$repo_org/$repo_name" "$number" title="$title" body="$body""
+    ok.sh update_pull_request "$repo_org/$repo_name" "$number" title="$title" body="$body"
   fi
 
 }
