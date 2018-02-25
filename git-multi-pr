@@ -1,0 +1,443 @@
+usage() {
+  echo "TODO"
+}
+
+master="master"
+
+new_queue() {
+  if [ -z "$1" ]; then
+    usage
+    exit 1
+  fi
+
+  echo "Creating new branch $1"
+  git checkout "$master"
+  git checkout -b "$1"
+}
+
+print_queue() {
+  local branch="$(git symbolic-ref --short -q HEAD)"
+  local refs="$(git rev-list --abbrev-commit origin/"$master"..)"
+  local IFS=$'\n' refs_array=($refs)
+  local count="${#refs_array[@]}"
+
+  echo
+  echo "Local commit queue for $branch:"
+
+  if [ "$count" -eq 0 ]; then
+    echo "All of your commits have already landed on origin/$master."
+  else
+    _print_augmented_queue "$refs"
+  fi
+}
+
+_print_augmented_queue() {
+  local refs="$1"
+  local IFS=$'\n' refs_array=($refs)
+
+  for ref in "${refs_array[@]}"; do
+    local url="$(_get_ref_pr_url $ref)"
+
+    local sha_format="%C(yellow)%h"
+    if [ -z "$url" ]; then
+      local url_format=""
+    else
+      local url_format=" %C(reset)%C(ul)$url%C(noul)"
+    fi
+    local ref_format="%C(green bold)%d"
+    local subject_format="%C(reset)%s"
+
+    echo "$(git log -n 1 --color --pretty=format:"$sha_format$url_format$ref_format $subject_format" "$ref")"
+  done
+}
+
+sync_queue() {
+  git fetch origin
+  git rebase origin/master
+}
+
+edit_ref() {
+  _edit_ref "$@"
+
+  print_queue
+}
+
+_edit_ref() {
+  if [ -z "$1" ]; then
+    usage
+    exit 1
+  fi
+
+  local sha="$(_get_sha "$1")"
+  local cmd="edit"
+  if [ $# -ge 2 ]; then
+      cmd="$2"
+  fi
+
+  echo "Entering rebase for $1 == $sha."
+  # Replace "pick $sha" and "# pick $sha" with "$cmd $sha".
+  local regex="'s/^\(# \)\{0,1\}pick $sha/$cmd $sha/'"
+  EDITOR="sed -i -e $regex" git rebase -i "origin/$master" &>/dev/null
+}
+
+continue_rebase() {
+  _continue_rebase "$@"
+
+  print_queue
+}
+
+_continue_rebase() {
+  echo "Exiting rebase."
+  git rebase --continue &>/dev/null
+}
+
+abort_rebase() {
+  _abort_rebase "$@"
+
+  print_queue
+}
+
+_abort_rebase() {
+  echo "Aborting rebase."
+  git rebase --abort &>/dev/null
+}
+
+_get_sha() {
+  local ref="$1"
+  local upper_ref="$(echo $ref | tr '[:lower:]' '[:upper:]')"
+
+  if [[ "$upper_ref" == "BASE" ]] || [[ "$upper_ref" == "BASE+"* ]]; then
+    local count="$(git rev-list --abbrev-commit origin/$master..HEAD | wc -l)"
+
+    if [[ "$upper_ref" == "BASE" ]]; then
+      local index="0"
+    else
+      local index="${ref#BASE+}"
+      if [[ -z "$index" ]]; then
+        index="1"
+      fi
+    fi
+
+    ref="HEAD~$(($count - $index - 1))"
+  fi
+
+  ref="$(git rev-parse --short $ref 2>/dev/null)"
+
+  if [[ ! -z "$ref" ]] && ! _is_local_ref "$ref"; then
+    echo "ref $1 is not in local history. Run '$parentcmd $cmd queue' to find a local ref." 1>&2
+    exit 1
+  fi
+
+  echo "$ref"
+}
+
+_is_local_ref() {
+  local refs="$(git rev-list --abbrev-commit origin/$master..HEAD)"
+  for ref in $refs; do
+    if [ "$ref" == "$1" ]; then
+      true
+      return
+    fi
+  done
+
+  false
+  return
+}
+
+export_prs() {
+  local branch="$(git symbolic-ref --short -q HEAD)"
+
+  local refs="$(git rev-list --abbrev-commit origin/"$master"..)"
+  local IFS=$'\n' refs_array=($refs)
+
+  # For each commit in the queue (oldest first), create a hidden branch and PR.
+  local count="${#refs_array[@]}"
+  local i="$(($count-1))"
+
+  local prev_ref_branch="origin/$master"
+  while [ $i -ge 0 ]; do
+    local ref="HEAD~$i"
+
+    # Break on first WIP commit.
+    local body="$(git log -n 1 --pretty=format:%b "$ref")"
+    if [[ "$body" == "WIP"* ]]; then
+      echo "Found WIP commit at $ref. Stopping."
+      break
+    fi
+
+    echo
+    echo "Exporting commit at $ref."
+
+    # Create hidden branch.
+    echo "Generating ref branch name for $ref."
+    local ref_branch="$(_generate_ref_branch_name $ref)"
+    echo "Generated name: $ref_branch."
+    _delete_ref_branch "$ref_branch" "$ref"
+    _create_ref_branch "$prev_ref_branch" "$ref_branch" "$ref"
+
+    # Create PR.
+    _create_ref_pr "$prev_ref_branch" "$ref_branch" "$ref"
+
+    i="$(($i-1))"
+    prev_ref_branch="$ref_branch"
+    git checkout "$branch" &>/dev/null
+  done
+
+  git checkout "$branch" &>/dev/null
+
+  print_queue
+}
+
+_generate_ref_branch_name() {
+  local ref="$1"
+
+  local ref_branch="$(_get_ref_branch_name $ref)"
+  if [[ ! -z "$ref_branch" ]]; then
+    echo "$ref_branch"
+    return 0
+  fi
+
+  # Prefix.
+  ref_branch="_git-multi-pr-"
+
+  # Pick a few words from the subject.
+  local subject="$(git log -n 1 --pretty=format:%s "$ref")"
+  subject="$(echo "$subject" | tr ' ' '\n')"
+  local IFS=$'\n' words=($subject)
+
+  local num=0
+  for word in "${words[@]}"; do
+    word="$(echo "$word" | tr '[:upper:]' '[:lower:]' | tr -cd '[:alnum:]')"
+    ref_branch="$ref_branch-$word"
+
+    num=$((num + 1))
+    if [ "$num" -ge "3" ]; then
+      break
+    fi
+  done
+
+  # Suffix.
+  ref_branch="$ref_branch-$(uuidgen)"
+
+  echo "$ref_branch"
+}
+
+_delete_ref_branch() {
+  local ref_branch="$1"
+  local ref="$2"
+
+  git rev-parse --verify "$ref_branch" &>/dev/null
+  if [ $? -eq 0 ]; then
+    echo
+    echo "Deleting existing branch $ref_branch for commit at $ref."
+    git branch -D "$ref_branch" &>/dev/null
+  fi
+
+  _remove_ref_commit_message "$ref" "GIT_MULTI_BRANCH="
+}
+
+_create_ref_branch() {
+  local prev_ref_branch="$1"
+  local ref_branch="$2"
+  local ref="$3"
+
+  echo
+  echo "Creating branch $ref_branch for commit at $ref."
+
+  git branch -D "$ref_branch" &>/dev/null
+
+  _append_ref_commit_message "$ref" "GIT_MULTI_BRANCH=$ref_branch"
+
+  local sha="$(_get_sha $ref)"
+
+  git checkout "$prev_ref_branch" &>/dev/null
+  git checkout -b "$ref_branch" &>/dev/null
+  git cherry-pick "$sha"
+
+  local remote_branch="$(_get_remote_ref_branch $ref_branch)"
+  git push --force-with-lease origin "$ref_branch:$remote_branch"
+}
+
+_append_ref_commit_message() {
+  local ref="$1"
+  local message="$2"
+
+  echo "Adding $message to commit message of $ref."
+  _edit_ref "$ref"
+  # Ensure only one single empty line before $message.
+  git filter-branch -f --msg-filter "cat | sed -e :a -e '/^\n*$/{$d;N;};/\n$/ba' && echo && echo $message" HEAD~..HEAD
+  _continue_rebase
+}
+
+_remove_ref_commit_message() {
+  local ref="$1"
+  local message="$2"
+
+  echo "Removing $message from commit message of $ref."
+  _edit_ref "$ref"
+  git filter-branch -f --msg-filter "sed \"/^$message/ d\"" HEAD~..HEAD
+  _continue_rebase
+}
+
+_get_remote_ref_branch() {
+  local ref_branch="$1"
+
+  if [[ "$ref_branch" == "$master" ]] || [[ "$ref_branch" == "origin/$master" ]]; then
+    echo "origin/master"
+    return 0
+  fi
+
+  local email="$(git config user.email)"
+  local username="${email%@*}"
+
+  echo "$username$ref_branch"
+}
+
+_create_ref_pr() {
+  echo
+  echo "Creating PR for $ref_branch."
+
+  local prev_ref_branch="$1"
+  local ref_branch="$2"
+  local ref="$3"
+
+  local repo_org="$(_get_repo_org)"
+  local repo_name="$(_get_repo_name)"
+
+  local title="$(git log -n 1 --pretty=format:%s "$ref")"
+  local body="$(git log -n 1 --pretty=format:%b "$ref")"
+
+  local pr_url="$(_get_ref_pr_url $ref)"
+  if [ -z "$pr_url" ]; then
+    local prev_remote_branch="$(_get_remote_ref_branch $prev_ref_branch)"
+    local remote_branch="$(_get_remote_ref_branch $ref_branch)"
+
+    echo "ok.sh create_pull_request "\"$repo_org/$repo_name\"" "\"$title\"" "\"$remote_branch\"" "\"$prev_remote_branch\"" "body=\"$body\"""
+    ok.sh create_pull_request "\"$repo_org/$repo_name\"" "\"$title\"" "\"$remote_branch\"" "\"$prev_remote_branch\"" "body=\"$body\""
+  else
+    local number="$(basename "$pr_url")"
+
+    echo "Found existing PR #$number for $ref_branch."
+
+    echo "ok.sh update_pull_request "\"$repo_org/$repo_name\"" "\"$number\"" "title=\"$title\"" "body=\"$body\"""
+    ok.sh update_pull_request "\"$repo_org/$repo_name\"" "\"$number\"" "title=\"$title\"" "body=\"$body\""
+  fi
+
+}
+
+_get_repo_org() {
+  # Take the repo url.
+  local repo_url="$(git remote get-url --push origin)"
+  # Remove the extension.
+  repo_url="${repo_url%.*}"
+  # Convert : and / to new lines.
+  repo_url="$(echo "$repo_url" | tr ':' '\n' | tr '/' '\n')"
+  # Split into array.
+  local IFS=$'\n' repo_components=($repo_url)
+  local count="${#repo_components[@]}"
+
+  local repo_org_index="$(($count-2))"
+  echo "${repo_components[$repo_org_index]}"
+}
+
+_get_repo_name() {
+  # Take the repo url.
+  local repo_url="$(git remote get-url --push origin)"
+  # Remove the extension.
+  repo_url="${repo_url%.*}"
+  # Convert : and / to new lines.
+  repo_url="$(echo "$repo_url" | tr ':' '\n' | tr '/' '\n')"
+  # Split into array.
+  local IFS=$'\n' repo_components=($repo_url)
+  local count="${#repo_components[@]}"
+
+  local repo_name_index="$(($count-1))"
+  echo "${repo_components[$repo_name_index]}"
+}
+
+_get_ref_branch_name() {
+  local ref="$1"
+  local body="$(git log -n 1 --pretty=format:%b "$ref")"
+  echo "$body" | while read -r line; do
+    if [[ "$line" == "GIT_MULTI_BRANCH="* ]]; then
+      echo "${line#GIT_MULTI_BRANCH=}"
+      break
+    fi
+  done
+}
+
+_get_ref_pr_url() {
+  local ref="$1"
+  local body="$(git log -n 1 --pretty=format:%b "$ref")"
+  echo "$body" | while read -r line; do
+    if [[ "$line" == "PR="* ]]; then
+      echo "${line#PR=}"
+      break
+    fi
+  done
+}
+
+submit_pr() {
+  local sha="$(_get_sha $1)";
+  local flags="$@"
+  if [[ ! -z "$sha" ]]; then
+    flags="${@:2}"
+  fi
+
+  # Default to BASE.
+  if [[ -z "$sha" ]]; then
+    sha="$(_get_sha BASE)"
+  fi
+
+  if [[ -z "$sha" ]]; then
+    echo "No local commits available." 1>&2
+    exit 1
+  fi
+
+  if [ "$(git rev-list --abbrev-commit origin/$master..HEAD | wc -l)" -gt "1" ]; then
+    echo "Running 'arc land $flags --keep-branch $sha'"
+    arc land $flags --keep-branch "$sha"
+  else
+    echo "Running 'arc land $flags'"
+    arc land $flags
+  fi
+
+  if [ $? -eq 0 ]; then
+    echo "Submitted successfully. Syncing to latest."
+    sync_queue
+  fi
+
+  print_queue
+}
+
+case "$1" in
+  # Step 1
+  new)                           new_queue "${@:2}" ;;
+
+  # Step 2
+  queue)                         print_queue "${@:2}" ;;
+  sync)                          sync_queue "${@:2}" ;;
+  edit)                          edit_ref "${@:2}" ;;
+  continue)                      continue_rebase "${@:2}" ;;
+  abort)                         abort_rebase "${@:2}" ;;
+
+  # Step 3
+  export)                        export_prs "${@:2}" ;;
+
+  # Step 4
+  submit)                        submit_pr "${@:2}" ;;
+
+  # Private
+  _is_local_ref)                 _is_local_ref "${@:2}" ;;
+  _get_sha)                      _get_sha "${@:2}" ;;
+  _get_ref_pr_url)               _get_ref_pr_url "${@:2}" ;;
+  _get_ref_branch_name)          _get_ref_branch_name "${@:2}" ;;
+  _create_ref_branch)            _create_ref_branch "${@:2}" ;;
+  _generate_ref_branch_name)     _generate_ref_branch_name "${@:2}" ;;
+  _append_ref_commit_message)    _append_ref_commit_message "${@:2}" ;;
+  _remove_ref_commit_message)    _remove_ref_commit_message "${@:2}" ;;
+  _create_ref_pr)                _create_ref_pr "${@:2}" ;;
+
+  # Help
+  *)                             usage ;;
+esac
