@@ -6,6 +6,9 @@ usage() {
 
 master="master"
 
+bold=$(tput bold)
+normal=$(tput sgr0)
+
 new_queue() {
   if [ -z "$1" ]; then
     usage
@@ -57,6 +60,7 @@ sync_queue() {
   git fetch origin
   git rebase "origin/$master"
 
+  echo
   _cleanup_ref_branches "_git-multi-pr-"
 }
 
@@ -234,14 +238,16 @@ export_prs() {
     local ref="HEAD~$i"
 
     # Break on first WIP commit.
-    local body="$(_git_get_commit_body "$ref")"
-    if [[ "$body" == "WIP"* ]]; then
-      echo "Found WIP commit at $ref. Stopping."
+    local subject="$(_git_get_commit_subject "$ref")"
+    if [[ "$subject" == "WIP"* ]]; then
+      echo
+      echo "${bold}Found WIP commit at $ref: $subject${normal}"
+      echo "Stopping."
       break
     fi
 
     echo
-    echo "Exporting commit at $ref."
+    echo "${bold}Exporting commit at $ref: $subject.${normal}"
 
     # Create hidden branch.
     echo "Generating ref branch name for $ref."
@@ -276,7 +282,7 @@ _generate_ref_branch_name() {
   ref_branch="_git-multi-pr-"
 
   # Pick a few words from the subject.
-  local subject="$(git log -n 1 --pretty=format:%s "$ref")"
+  local subject="$(_git_get_commit_subject)"
   subject="$(echo "$subject" | tr ' ' '\n')"
   local IFS=$'\n' words=($subject)
 
@@ -381,7 +387,7 @@ _create_ref_pr() {
   local pr_url="$(_get_ref_pr_url "$ref")"
   local number="$(basename "$pr_url")"
 
-  local title="$(git log -n 1 --pretty=format:%s "$ref")"
+  local title="$(_git_get_commit_subject)"
   local body="$(_git_get_commit_body "$ref")"
 
   if [[ "$prev_ref_branch" == "origin/$master" ]]; then
@@ -523,6 +529,10 @@ _git_get_branch() {
 
 _git_get_commits() {
   git rev-list --abbrev-commit $@ "origin/$master"..
+}
+
+_git_get_commit_subject() {
+  git log -n 1 --pretty=format:%s $@
 }
 
 _git_get_commit_body() {
