@@ -9,6 +9,8 @@ master="master"
 bold=$(tput bold)
 normal=$(tput sgr0)
 
+cmd=$(basename "${BASH_SOURCE[0]}")
+
 new_queue() {
   if [ -z "$1" ]; then
     usage
@@ -41,7 +43,7 @@ _print_augmented_queue() {
   local IFS=$'\n' refs_array=($refs)
 
   for ref in "${refs_array[@]}"; do
-    local url="$(_get_ref_pr_url $ref)"
+    local url="$(_get_ref_pr_url "$ref")"
 
     local sha_format="%C(yellow)%h"
     if [ -z "$url" ]; then
@@ -143,15 +145,15 @@ _edit_ref() {
     return 0
   fi
 
-  local sha="$(_get_sha "$1")"
-  local cmd="edit"
+  local sha="$(_get_sha_in_local_queue "$1")"
+  local rebase_command="edit"
   if [ $# -ge 2 ]; then
-      cmd="$2"
+      rebase_command="$2"
   fi
 
-  echo "Entering rebase for $1 == $sha with command $cmd."
-  # Replace "pick $sha" and "# pick $sha" with "$cmd $sha".
-  local regex="'s/^\(# \)\{0,1\}pick $sha/$cmd $sha/'"
+  echo "Entering rebase for $1 == $sha with command $rebase_command."
+  # Replace "pick $sha" and "# pick $sha" with "$rebase_command $sha".
+  local regex="'s/^\(# \)\{0,1\}pick $sha/$rebase_command $sha/'"
   GIT_SEQUENCE_EDITOR="sed -i -e $regex" git rebase -i "origin/$master" &>/dev/null
 }
 
@@ -183,9 +185,9 @@ _abort_rebase() {
   git rebase --abort
 }
 
-_get_sha() {
+_get_sha_in_local_queue() {
   local ref="$1"
-  local upper_ref="$(echo $ref | tr '[:lower:]' '[:upper:]')"
+  local upper_ref="$(echo "$ref" | tr '[:lower:]' '[:upper:]')"
 
   if [[ "$upper_ref" == "BASE" ]] || [[ "$upper_ref" == "BASE+"* ]]; then
     local count="$(_git_get_commits | wc -l)"
@@ -202,10 +204,11 @@ _get_sha() {
     ref="HEAD~$(($count - $index - 1))"
   fi
 
-  ref="$(git rev-parse --short $ref 2>/dev/null)"
+  ref="$(_git_get_commit_sha "$ref")"
 
   if [[ ! -z "$ref" ]] && ! _is_local_ref "$ref"; then
-    echo "ref $1 is not in local history. Run '$parentcmd $cmd queue' to find a local ref." 1>&2
+    echo "ref $1 is not a local commit in your queue." 1>&2
+    echo "Run '$cmd queue' to find a local commit, or use a relative ref like HEAD~." 1>&2
     exit 1
   fi
 
@@ -250,9 +253,8 @@ export_prs() {
     echo "${bold}Exporting commit at $ref: $subject.${normal}"
 
     # Create hidden branch.
-    echo "Generating ref branch name for $ref."
-    local ref_branch="$(_generate_ref_branch_name $ref)"
-    echo "Generated name: $ref_branch."
+    local ref_branch="$(_generate_ref_branch_name "$ref")"
+    echo "Using hidden branch $ref_branch for $ref."
     _delete_ref_branch "$ref_branch" "$ref"
     _create_ref_branch "$prev_ref_branch" "$ref_branch" "$ref"
 
@@ -272,7 +274,7 @@ export_prs() {
 _generate_ref_branch_name() {
   local ref="$1"
 
-  local ref_branch="$(_get_ref_branch_name $ref)"
+  local ref_branch="$(_get_ref_branch_name "$ref")"
   if [[ ! -z "$ref_branch" ]]; then
     echo "$ref_branch"
     return 0
@@ -310,7 +312,7 @@ _delete_ref_branch() {
   git rev-parse --verify "$ref_branch" &>/dev/null
   if [ $? -eq 0 ]; then
     echo
-    echo "Deleting existing branch $ref_branch for commit at $ref."
+    echo "Deleting existing hidden branch $ref_branch for commit at $ref."
     git branch -D "$ref_branch" &>/dev/null
   fi
 
@@ -332,13 +334,13 @@ _create_ref_branch() {
   _remove_ref_commit_message "$ref" "GIT_MULTI_BRANCH="
   _append_ref_commit_message "$ref" "GIT_MULTI_BRANCH=$ref_branch"
 
-  local sha="$(_get_sha $ref)"
+  local sha="$(_get_sha_in_local_queue "$ref")"
 
   git checkout "$prev_ref_branch" &>/dev/null
   git checkout -b "$ref_branch" &>/dev/null
   git cherry-pick "$sha"
 
-  local remote_branch="$(_get_remote_ref_branch $ref_branch)"
+  local remote_branch="$(_get_remote_ref_branch "$ref_branch")"
   git push -f origin "$ref_branch:$remote_branch"
 
   git checkout "$branch" &>/dev/null
@@ -351,7 +353,7 @@ _append_ref_commit_message() {
   echo "Adding $message to commit message of $ref."
   _edit_ref "$ref"
   # Ensure only one single empty line before $message.
-  git filter-branch -f --msg-filter "cat | sed -e :a -e '/^\n*$/{$d;N;};/\n$/ba' && echo && echo $message" HEAD~..HEAD
+  git filter-branch -f --msg-filter "cat | sed -e :a -e '/^\n*$/{$d;N;};/\n$/ba' && echo && echo "$message"" HEAD~..HEAD
   _continue_rebase
 }
 
@@ -387,15 +389,15 @@ _create_ref_pr() {
   local pr_url="$(_get_ref_pr_url "$ref")"
   local number="$(basename "$pr_url")"
 
-  local title="$(_git_get_commit_subject)"
+  local title="$(_git_get_commit_subject "$ref")"
   local body="$(_git_get_commit_body "$ref")"
 
   if [[ "$prev_ref_branch" == "origin/$master" ]]; then
-    local prev_remote_branch="master"
+    local prev_remote_branch="$master"
   else
-    local prev_remote_branch="$(_get_remote_ref_branch $prev_ref_branch)"
+    local prev_remote_branch="$(_get_remote_ref_branch "$prev_ref_branch")"
   fi
-  local remote_branch="$(_get_remote_ref_branch $ref_branch)"
+  local remote_branch="$(_get_remote_ref_branch "$ref_branch")"
 
   if [ -z "$pr_url" ] || _is_closed_issue "$pr_url"; then
     echo "> ok.sh create_pull_request \"$repo_org/$repo_name\" \"$title\" \"$remote_branch\" \"$prev_remote_branch\" body=\"$body\""
@@ -406,12 +408,15 @@ _create_ref_pr() {
 
     if [ ! -z "$pr_url" ]; then
       _append_ref_commit_message "$ref" "PR=$pr_url"
+    else
+      echo "Failed to create pull request."
+      return 1
     fi
   else
     echo "Found existing PR #$number for $ref_branch."
 
     echo "> ok.sh update_pull_request \"$repo_org/$repo_name\" \"$number\" title=\"$title\" body=\"$body\" base=\"$prev_remote_branch\" state=\"open\""
-    ok.sh update_pull_request "$repo_org/$repo_name" "$number" title="$title" body="$body" base="$prev_remote_branch" state="open"
+    ok.sh update_pull_request "$repo_org/$repo_name" "$number" title="$title" body="$body" base="$prev_remote_branch" state="open" &>/dev/null
   fi
 
 }
@@ -458,10 +463,10 @@ _is_closed_issue() {
   local response="$(ok.sh _get "/repos/$repo_org/$repo_name/issues/$number" | ok.sh _filter_json "${filter}")"
   local state="$(echo "$response" | cut -f2)"
 
-  if [[ "$state" == "closed" ]]; then
-    return 0
-  else
+  if [[ "$state" == "open" ]]; then
     return 1
+  else
+    return 0
   fi
 }
 
@@ -531,11 +536,30 @@ _git_get_commits() {
   git rev-list --abbrev-commit $@ "origin/$master"..
 }
 
+_git_get_commit_sha() {
+  if [ -z "$1" ]; then
+    usage
+    exit 1
+  fi
+
+  git rev-parse --short $@ 2>/dev/null
+}
+
 _git_get_commit_subject() {
+  if [ -z "$1" ]; then
+    usage
+    exit 1
+  fi
+
   git log -n 1 --pretty=format:%s $@
 }
 
 _git_get_commit_body() {
+  if [ -z "$1" ]; then
+    usage
+    exit 1
+  fi
+
   git log -n 1 --pretty=format:%b $@
 }
 
@@ -562,7 +586,7 @@ case "$1" in
 
   # Private
   _is_local_ref)                 _is_local_ref "${@:2}" ;;
-  _get_sha)                      _get_sha "${@:2}" ;;
+  _get_sha_in_local_queue)       _get_sha_in_local_queue "${@:2}" ;;
   _get_ref_pr_url)               _get_ref_pr_url "${@:2}" ;;
   _get_ref_branch_name)          _get_ref_branch_name "${@:2}" ;;
   _create_ref_branch)            _create_ref_branch "${@:2}" ;;
