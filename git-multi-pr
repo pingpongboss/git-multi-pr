@@ -13,13 +13,13 @@ new_queue() {
   fi
 
   echo "Creating new branch $1"
-  git checkout "$master"
+  git checkout "origin/$master" &>/dev/null
   git checkout -b "$1"
 }
 
 print_queue() {
-  local branch="$(git symbolic-ref --short -q HEAD)"
-  local refs="$(git rev-list --abbrev-commit origin/"$master"..)"
+  local branch="$(_git_get_branch)"
+  local refs="$(_git_get_commits)"
   local IFS=$'\n' refs_array=($refs)
   local count="${#refs_array[@]}"
 
@@ -63,11 +63,11 @@ sync_queue() {
 _cleanup_ref_branches() {
   local prefix="$1"
 
-  local current_branch="$(git symbolic-ref --short -q HEAD)"
+  local current_branch="$(_git_get_branch)"
   local empty_branches=()
 
   # Ensure clean branch.
-  git diff-index --quiet HEAD -- || { echo "$current_branch has uncommitted changes. Exiting."; return 1; }
+  _git_check_clean_state || { echo "$current_branch has uncommitted changes. Exiting."; return 1; }
 
   if [ -z "$prefix" ]; then
     local filter="refs/heads/"
@@ -81,9 +81,9 @@ _cleanup_ref_branches() {
     git rebase "origin/$master" &>/dev/null
 
     # A conflict means local commits exist.
-    git diff-index --quiet HEAD -- || { git rebase --abort; continue; }
+    _git_check_clean_state || { git rebase --abort; continue; }
 
-    local commits=$(git rev-list --abbrev-commit origin/$master..HEAD)
+    local commits=$(_git_get_commits)
     if [ -z "$commits" ] && [ "$branch" != "$master" ]; then
       empty_branches+=("$branch")
     fi
@@ -96,13 +96,12 @@ _cleanup_ref_branches() {
   fi
 
   echo "Found empty branches:"
-  printf '  %s\n' "${empty_branches[@]}"
+  printf '\t%s\n' "${empty_branches[@]}"
 
   if [ -z "$prefix" ]; then
     echo
     echo "Delete these empty branches? [y/N]: "
     read prompt
-    echo
   else
     local prompt="y"
   fi
@@ -129,14 +128,15 @@ _cleanup_ref_branches() {
 edit_ref() {
   _edit_ref "$@"
 
+  # TODO: Only show this if in rebase.
   echo
   echo "Remember to continue the rebase after you make your changes."
 }
 
 _edit_ref() {
   if [ -z "$1" ]; then
-    usage
-    exit 1
+    git rebase -i "origin/$master"
+    return 0
   fi
 
   local sha="$(_get_sha "$1")"
@@ -145,17 +145,17 @@ _edit_ref() {
       cmd="$2"
   fi
 
-  echo "Entering rebase for $1 == $sha."
+  echo "Entering rebase for $1 == $sha with command $cmd."
   # Replace "pick $sha" and "# pick $sha" with "$cmd $sha".
   local regex="'s/^\(# \)\{0,1\}pick $sha/$cmd $sha/'"
-  EDITOR="sed -i -e $regex" git rebase -i "origin/$master" &>/dev/null
+  GIT_SEQUENCE_EDITOR="sed -i -e $regex" git rebase -i "origin/$master" &>/dev/null
 }
 
 continue_rebase() {
   _continue_rebase "$@"
 
   # Detect conflict.
-  git diff-index --quiet HEAD -- || {
+  _git_check_clean_state || {
     echo "Resolve the conflicts and continue the rebase again."
     return 0
   }
@@ -184,7 +184,7 @@ _get_sha() {
   local upper_ref="$(echo $ref | tr '[:lower:]' '[:upper:]')"
 
   if [[ "$upper_ref" == "BASE" ]] || [[ "$upper_ref" == "BASE+"* ]]; then
-    local count="$(git rev-list --abbrev-commit origin/$master..HEAD | wc -l)"
+    local count="$(_git_get_commits | wc -l)"
 
     if [[ "$upper_ref" == "BASE" ]]; then
       local index="0"
@@ -209,22 +209,20 @@ _get_sha() {
 }
 
 _is_local_ref() {
-  local refs="$(git rev-list --abbrev-commit origin/$master..HEAD)"
+  local refs="$(_git_get_commits)"
   for ref in $refs; do
     if [ "$ref" == "$1" ]; then
-      true
-      return
+      return 0
     fi
   done
 
-  false
-  return
+  return 1
 }
 
 export_prs() {
-  local branch="$(git symbolic-ref --short -q HEAD)"
+  local branch="$(_git_get_branch)"
 
-  local refs="$(git rev-list --abbrev-commit origin/"$master"..)"
+  local refs="$(_git_get_commits)"
   local IFS=$'\n' refs_array=($refs)
 
   # For each commit in the queue (oldest first), create a hidden branch and PR.
@@ -236,7 +234,7 @@ export_prs() {
     local ref="HEAD~$i"
 
     # Break on first WIP commit.
-    local body="$(git log -n 1 --pretty=format:%b "$ref")"
+    local body="$(_git_get_commit_body "$ref")"
     if [[ "$body" == "WIP"* ]]; then
       echo "Found WIP commit at $ref. Stopping."
       break
@@ -318,7 +316,7 @@ _create_ref_branch() {
   local ref_branch="$2"
   local ref="$3"
 
-  local branch="$(git symbolic-ref --short -q HEAD)"
+  local branch="$(_git_get_branch)"
 
   echo
   echo "Creating branch $ref_branch for commit at $ref."
@@ -384,7 +382,7 @@ _create_ref_pr() {
   local number="$(basename "$pr_url")"
 
   local title="$(git log -n 1 --pretty=format:%s "$ref")"
-  local body="$(git log -n 1 --pretty=format:%b "$ref")"
+  local body="$(_git_get_commit_body "$ref")"
 
   if [[ "$prev_ref_branch" == "origin/$master" ]]; then
     local prev_remote_branch="master"
@@ -399,7 +397,10 @@ _create_ref_pr() {
 
     pr_url="$(echo "$response" | cut -f2)"
     _remove_ref_commit_message "$ref" "PR="
-    _append_ref_commit_message "$ref" "PR=$pr_url"
+
+    if [ ! -z "$pr_url" ]; then
+      _append_ref_commit_message "$ref" "PR=$pr_url"
+    fi
   else
     echo "Found existing PR #$number for $ref_branch."
 
@@ -452,15 +453,15 @@ _is_closed_issue() {
   local state="$(echo "$response" | cut -f2)"
 
   if [[ "$state" == "closed" ]]; then
-    true
+    return 0
   else
-    false
+    return 1
   fi
 }
 
 _get_ref_branch_name() {
   local ref="$1"
-  local body="$(git log -n 1 --pretty=format:%b "$ref")"
+  local body="$(_git_get_commit_body "$ref")"
   echo "$body" | while read -r line; do
     if [[ "$line" == "GIT_MULTI_BRANCH="* ]]; then
       echo "${line#GIT_MULTI_BRANCH=}"
@@ -471,7 +472,7 @@ _get_ref_branch_name() {
 
 _get_ref_pr_url() {
   local ref="$1"
-  local body="$(git log -n 1 --pretty=format:%b "$ref")"
+  local body="$(_git_get_commit_body "$ref")"
   echo "$body" | while read -r line; do
     if [[ "$line" == "PR="* ]]; then
       echo "${line#PR=}"
@@ -483,7 +484,7 @@ _get_ref_pr_url() {
 submit_pr() {
   git fetch origin &>/dev/null
 
-  local refs="$(git rev-list --abbrev-commit --reverse origin/"$master"..)"
+  local refs="$(_git_get_commits --reverse)"
   local IFS=$'\n' refs_array=($refs)
   local ref="${refs_array[0]}"
 
@@ -514,6 +515,22 @@ submit_pr() {
       return 1
       ;;
   esac
+}
+
+_git_get_branch() {
+  git symbolic-ref --short -q $@ HEAD
+}
+
+_git_get_commits() {
+  git rev-list --abbrev-commit $@ "origin/$master"..
+}
+
+_git_get_commit_body() {
+  git log -n 1 --pretty=format:%b $@
+}
+
+_git_check_clean_state() {
+  git diff-index --quiet $@ HEAD --
 }
 
 case "$1" in
