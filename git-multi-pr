@@ -67,6 +67,9 @@ sync_queue() {
 }
 
 _cleanup_ref_branches() {
+  # TODO: This currently only checks if the branch is empty.
+  # We should also check if it only contains commits that have been removed from the local queue.
+
   local prefix="$1"
 
   local current_branch="$(_git_get_branch)"
@@ -134,9 +137,10 @@ _cleanup_ref_branches() {
 edit_ref() {
   _edit_ref "$@"
 
-  # TODO: Only show this if in rebase.
-  echo
-  echo "Remember to continue the rebase after you make your changes."
+  if _git_check_rebase_state; then
+    echo
+    echo "Remember to call '$cmd continue' after you make your changes, or '$cmd abort' to cancel."
+  fi
 }
 
 _edit_ref() {
@@ -254,7 +258,7 @@ export_prs() {
 
     # Create hidden branch.
     local ref_branch="$(_generate_ref_branch_name "$ref")"
-    echo "Using hidden branch $ref_branch for $ref."
+    echo "Will use hidden branch $ref_branch for $ref."
     _delete_ref_branch "$ref_branch" "$ref"
     _create_ref_branch "$prev_ref_branch" "$ref_branch" "$ref"
 
@@ -311,8 +315,6 @@ _delete_ref_branch() {
 
   git rev-parse --verify "$ref_branch" &>/dev/null
   if [ $? -eq 0 ]; then
-    echo
-    echo "Deleting existing hidden branch $ref_branch for commit at $ref."
     git branch -D "$ref_branch" &>/dev/null
   fi
 
@@ -326,22 +328,19 @@ _create_ref_branch() {
 
   local branch="$(_git_get_branch)"
 
-  echo
-  echo "Creating branch $ref_branch for commit at $ref."
-
   git branch -D "$ref_branch" &>/dev/null
 
-  _remove_ref_commit_message "$ref" "GIT_MULTI_BRANCH="
   _append_ref_commit_message "$ref" "GIT_MULTI_BRANCH=$ref_branch"
 
   local sha="$(_get_sha_in_local_queue "$ref")"
 
+  echo "Creating hidden branch $ref_branch for $ref."
   git checkout "$prev_ref_branch" &>/dev/null
   git checkout -b "$ref_branch" &>/dev/null
-  git cherry-pick "$sha"
+  git cherry-pick "$sha" &>/dev/null
 
   local remote_branch="$(_get_remote_ref_branch "$ref_branch")"
-  git push -f origin "$ref_branch:$remote_branch"
+  git push -f origin "$ref_branch:$remote_branch" &>/dev/null
 
   git checkout "$branch" &>/dev/null
 }
@@ -351,10 +350,10 @@ _append_ref_commit_message() {
   local message="$2"
 
   echo "Adding $message to commit message of $ref."
-  _edit_ref "$ref"
+  _edit_ref "$ref" &>/dev/null
   # Ensure only one single empty line before $message.
-  git filter-branch -f --msg-filter "cat | sed -e :a -e '/^\n*$/{$d;N;};/\n$/ba' && echo && echo "$message"" HEAD~..HEAD
-  _continue_rebase
+  git filter-branch -f --msg-filter "cat | sed -e :a -e '/^\n*$/{$d;N;};/\n$/ba' && echo && echo "$message"" HEAD~..HEAD &>/dev/null
+  _continue_rebase &>/dev/null
 }
 
 _remove_ref_commit_message() {
@@ -362,9 +361,9 @@ _remove_ref_commit_message() {
   local message="$2"
 
   echo "Removing $message from commit message of $ref."
-  _edit_ref "$ref"
-  git filter-branch -f --msg-filter "sed \"/^$message/ d\"" HEAD~..HEAD
-  _continue_rebase
+  _edit_ref "$ref" &>/dev/null
+  git filter-branch -f --msg-filter "sed \"/^$message/ d\"" HEAD~..HEAD &>/dev/null
+  _continue_rebase &>/dev/null
 }
 
 _get_remote_ref_branch() {
@@ -565,6 +564,14 @@ _git_get_commit_body() {
 
 _git_check_clean_state() {
   git diff-index --quiet $@ HEAD --
+}
+
+_git_check_rebase_state() {
+  (test -d "$(git rev-parse --git-path rebase-merge)" ||  \
+    test -d "$(git rev-parse --git-path rebase-apply)" ) \
+  || return 1
+
+  return 0
 }
 
 case "$1" in
