@@ -288,7 +288,7 @@ _generate_ref_branch_name() {
   ref_branch="_git-multi-pr-"
 
   # Pick a few words from the subject.
-  local subject="$(_git_get_commit_subject)"
+  local subject="$(_git_get_commit_subject "$ref")"
   subject="$(echo "$subject" | tr ' ' '\n')"
   local IFS=$'\n' words=($subject)
 
@@ -353,15 +353,24 @@ _append_ref_commit_message() {
   echo "Adding $message to commit message of $ref."
   _edit_ref "$ref" &>/dev/null
   # Ensure only one single empty line before $message.
-  git filter-branch -f --msg-filter "$cmd _append_ref_commit_message_helper $message" HEAD~..HEAD &>/dev/null
+  git filter-branch -f --msg-filter "$cmd _ref_commit_message_helper append $message" HEAD~..HEAD &>/dev/null
   _continue_rebase &>/dev/null
 }
 
-_append_ref_commit_message_helper() {
-  local message="$1"
-  local commit="$(cat)"
+_remove_ref_commit_message() {
+  local ref="$1"
+  local message="$2"
 
-  local IFS=$'\n' lines=($commit)
+  echo "Removing $message from commit message of $ref."
+  _edit_ref "$ref"
+  git filter-branch -f --msg-filter "$cmd _ref_commit_message_helper remove $message" HEAD~..HEAD
+  _continue_rebase
+}
+
+_ref_commit_message_helper() {
+  local operation="$1"
+  local message="$2"
+  local commit="$(cat)"
 
   local empty_lines=0
   local encountered_metadata=false
@@ -372,7 +381,10 @@ _append_ref_commit_message_helper() {
       continue
     fi
 
-    # if [[ "$line" == "GIT_MULTI_BRANCH="* ]] || [[ "$line" == "PR="* ]]; then
+    if [[ "$operation" == "remove" ]] && [[ "$line" == "$message"* ]]; then
+      continue
+    fi
+
     if [[ "$line" =~ ^[A-Z_]+= ]]; then
       if $encountered_metadata ; then
         empty_lines=0
@@ -389,20 +401,12 @@ _append_ref_commit_message_helper() {
     echo "$line"
   done < <(echo "$commit")
 
-  if ! $encountered_metadata ; then
-    echo
+  if [[ "$operation" == "append" ]]; then
+    if ! $encountered_metadata ; then
+      echo
+    fi
+    echo "$message"
   fi
-  echo "$message"
-}
-
-_remove_ref_commit_message() {
-  local ref="$1"
-  local message="$2"
-
-  echo "Removing $message from commit message of $ref."
-  _edit_ref "$ref"
-  git filter-branch -f --msg-filter "cat | sed '/^$message/ d' | sed -e :a -e '/^\n*$/{$d;N;};/\n$/ba'" HEAD~..HEAD
-  _continue_rebase
 }
 
 _get_remote_ref_branch() {
@@ -429,6 +433,7 @@ _create_ref_pr() {
 
   local title="$(_git_get_commit_subject "$ref")"
   local body="$(_git_get_commit_body "$ref")"
+  body="$(echo "$body" | $cmd _ref_commit_message_helper remove GIT_MULTI_BRANCH= | $cmd _ref_commit_message_helper remove PR=)"
 
   if [[ "$prev_ref_branch" == "origin/$master" ]]; then
     local prev_remote_branch="$master"
@@ -442,9 +447,9 @@ _create_ref_pr() {
     local response="$(ok.sh create_pull_request "$repo_org/$repo_name" "$title" "$remote_branch" "$prev_remote_branch" body="$body")"
 
     pr_url="$(echo "$response" | cut -f2)"
-    _remove_ref_commit_message "$ref" "PR="
 
     if [ ! -z "$pr_url" ]; then
+      _remove_ref_commit_message "$ref" "PR="
       _append_ref_commit_message "$ref" "PR=$pr_url"
     else
       echo "Failed to create pull request."
@@ -644,7 +649,7 @@ case "$1" in
   _is_open_issue)                       _is_open_issue "${@:2}" ;;
 
   # Helper
-  _append_ref_commit_message_helper)    _append_ref_commit_message_helper "${@:2}" ;;
+  _ref_commit_message_helper)           _ref_commit_message_helper "${@:2}" ;;
 
 
   # Help
