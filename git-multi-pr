@@ -339,6 +339,7 @@ _create_ref_branch() {
   git checkout -b "$ref_branch" &>/dev/null
   git cherry-pick "$sha" &>/dev/null
 
+  echo "Pushing hidden branch $ref_branch to remote."
   local remote_branch="$(_get_remote_ref_branch "$ref_branch")"
   git push -f origin "$ref_branch:$remote_branch" &>/dev/null
 
@@ -352,8 +353,46 @@ _append_ref_commit_message() {
   echo "Adding $message to commit message of $ref."
   _edit_ref "$ref" &>/dev/null
   # Ensure only one single empty line before $message.
-  git filter-branch -f --msg-filter "cat | sed -e :a -e '/^\n*$/{$d;N;};/\n$/ba' && echo && echo "$message"" HEAD~..HEAD &>/dev/null
+  git filter-branch -f --msg-filter "$cmd _append_ref_commit_message_helper $message" HEAD~..HEAD &>/dev/null
   _continue_rebase &>/dev/null
+}
+
+_append_ref_commit_message_helper() {
+  local message="$1"
+  local commit="$(cat)"
+
+  local IFS=$'\n' lines=($commit)
+
+  local empty_lines=0
+  local encountered_metadata=false
+
+  while IFS=$'\n' read line; do
+    if [ -z "$line" ]; then
+      empty_lines="$(($empty_lines+1))"
+      continue
+    fi
+
+    # if [[ "$line" == "GIT_MULTI_BRANCH="* ]] || [[ "$line" == "PR="* ]]; then
+    if [[ "$line" =~ ^[A-Z_]+= ]]; then
+      if $encountered_metadata ; then
+        empty_lines=0
+      else
+        empty_lines=1
+      fi
+
+      encountered_metadata=true
+    fi
+
+    if [[ "$empty_lines" -ne "0" ]]; then
+      printf '\n%.0s' {1..$empty_lines}
+    fi
+    echo "$line"
+  done < <(echo "$commit")
+
+  if ! $encountered_metadata ; then
+    echo
+  fi
+  echo "$message"
 }
 
 _remove_ref_commit_message() {
@@ -361,9 +400,9 @@ _remove_ref_commit_message() {
   local message="$2"
 
   echo "Removing $message from commit message of $ref."
-  _edit_ref "$ref" &>/dev/null
-  git filter-branch -f --msg-filter "sed \"/^$message/ d\"" HEAD~..HEAD &>/dev/null
-  _continue_rebase &>/dev/null
+  _edit_ref "$ref"
+  git filter-branch -f --msg-filter "cat | sed '/^$message/ d' | sed -e :a -e '/^\n*$/{$d;N;};/\n$/ba'" HEAD~..HEAD
+  _continue_rebase
 }
 
 _get_remote_ref_branch() {
@@ -576,33 +615,36 @@ _git_check_rebase_state() {
 
 case "$1" in
   # Step 1
-  new)                           new_queue "${@:2}" ;;
+  new)                                  new_queue "${@:2}" ;;
 
   # Step 2
-  queue)                         print_queue "${@:2}" ;;
-  sync)                          sync_queue "${@:2}" ;;
-  edit)                          edit_ref "${@:2}" ;;
-  continue)                      continue_rebase "${@:2}" ;;
-  abort)                         abort_rebase "${@:2}" ;;
+  queue)                                print_queue "${@:2}" ;;
+  sync)                                 sync_queue "${@:2}" ;;
+  edit)                                 edit_ref "${@:2}" ;;
+  continue)                             continue_rebase "${@:2}" ;;
+  abort)                                abort_rebase "${@:2}" ;;
 
   # Step 3
-  export)                        export_prs "${@:2}" ;;
+  export)                               export_prs "${@:2}" ;;
 
   # Step 4
-  submit)                        submit_pr "${@:2}" ;;
+  submit)                               submit_pr "${@:2}" ;;
 
   # Private
-  _is_local_ref)                 _is_local_ref "${@:2}" ;;
-  _get_sha_in_local_queue)       _get_sha_in_local_queue "${@:2}" ;;
-  _get_ref_pr_url)               _get_ref_pr_url "${@:2}" ;;
-  _get_ref_branch_name)          _get_ref_branch_name "${@:2}" ;;
-  _create_ref_branch)            _create_ref_branch "${@:2}" ;;
-  _generate_ref_branch_name)     _generate_ref_branch_name "${@:2}" ;;
-  _append_ref_commit_message)    _append_ref_commit_message "${@:2}" ;;
-  _remove_ref_commit_message)    _remove_ref_commit_message "${@:2}" ;;
-  _create_ref_pr)                _create_ref_pr "${@:2}" ;;
-  _cleanup_ref_branches)         _cleanup_ref_branches "${@:2}" ;;
-  _is_open_issue)                _is_open_issue "${@:2}" ;;
+  _is_local_ref)                        _is_local_ref "${@:2}" ;;
+  _get_sha_in_local_queue)              _get_sha_in_local_queue "${@:2}" ;;
+  _get_ref_pr_url)                      _get_ref_pr_url "${@:2}" ;;
+  _get_ref_branch_name)                 _get_ref_branch_name "${@:2}" ;;
+  _create_ref_branch)                   _create_ref_branch "${@:2}" ;;
+  _generate_ref_branch_name)            _generate_ref_branch_name "${@:2}" ;;
+  _append_ref_commit_message)           _append_ref_commit_message "${@:2}" ;;
+  _remove_ref_commit_message)           _remove_ref_commit_message "${@:2}" ;;
+  _create_ref_pr)                       _create_ref_pr "${@:2}" ;;
+  _cleanup_ref_branches)                _cleanup_ref_branches "${@:2}" ;;
+  _is_open_issue)                       _is_open_issue "${@:2}" ;;
+
+  # Helper
+  _append_ref_commit_message_helper)    _append_ref_commit_message_helper "${@:2}" ;;
 
 
   # Help
