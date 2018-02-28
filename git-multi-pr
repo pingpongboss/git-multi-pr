@@ -7,6 +7,7 @@ usage() {
 master="master"
 
 bold=$(tput bold)
+underline=$(tput smul)
 normal=$(tput sgr0)
 
 cmd=$(basename "${BASH_SOURCE[0]}")
@@ -254,7 +255,7 @@ export_prs() {
     fi
 
     echo
-    echo "${bold}Exporting commit at $ref: $subject.${normal}"
+    echo "${bold}Exporting commit at $ref: $subject${normal}"
 
     # Create hidden branch.
     local ref_branch="$(_generate_ref_branch_name "$ref")"
@@ -563,7 +564,7 @@ submit_pr() {
       echo "> ok.sh add_comment \"$repo_org/$repo_name\" \"$number\" \":dash:\""
       ok.sh add_comment "$repo_org/$repo_name" "$number" ":dash:"
 
-      echo "Check $pr_url for the status on your submission."
+      echo "Check ${underline}$pr_url${normal} for the status on your submission."
       echo "When it is merged into master, sync your local queue."
       ;;
     *)
