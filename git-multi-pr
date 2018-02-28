@@ -254,7 +254,6 @@ export_prs() {
       break
     fi
 
-    echo
     echo "${bold}Exporting commit at $ref: $subject${normal}"
 
     # Create hidden branch.
@@ -269,6 +268,7 @@ export_prs() {
     i="$(($i-1))"
     prev_ref_branch="$ref_branch"
     git checkout "$branch" &>/dev/null
+    echo
   done
 
   git checkout "$branch" &>/dev/null
@@ -547,12 +547,11 @@ submit_pr() {
   local ref="${refs_array[0]}"
 
   echo
-  echo "Submitting: $(git log -n 1 --oneline --no-decorate "$ref")"
+  echo "${bold}Submitting: $(git log -n 1 --oneline --no-decorate "$ref")${normal}"
 
-  echo "If this is not what you want to submit, then reorder your local history first."
+  echo "If this is not what you want to submit, then use '$cmd edit' to reorder your local history, or '$cmd sync' to sync your local queue."
   echo "${bold}Do you want to submit $ref? [y/N]:${normal} "
   read prompt
-  echo
 
   case "$prompt" in
     y | Y)
