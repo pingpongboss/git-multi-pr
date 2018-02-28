@@ -546,8 +546,7 @@ submit_pr() {
   local ref="${refs_array[0]}"
 
   echo
-  echo "The next commit to be submitted is:"
-  git log -n 1 --oneline --color "$ref"
+  echo "The next commit to be submitted is: $(git log -n 1 --oneline --color "$ref")"
 
   echo "If this is not what you want to submit, then reorder your local history first."
   echo "Do you want to submit $ref? [y/N]: "
