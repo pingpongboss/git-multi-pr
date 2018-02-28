@@ -538,6 +538,9 @@ _get_ref_pr_url() {
 submit_pr() {
   git fetch origin &>/dev/null
 
+  echo "{bold}First re-exporting your local queue.{normal}"
+  export_prs
+
   local refs="$(_git_get_commits --reverse)"
   local IFS=$'\n' refs_array=($refs)
   local ref="${refs_array[0]}"
