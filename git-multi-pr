@@ -519,6 +519,7 @@ _ensure_ref_pr_open() {
 
   if [ ! -z "$pr_url" ]; then
     echo "Ensuring that the PR is open."
+    # The base branch must be set to an open branch https://github.com/isaacs/github/issues/361
     echo "> ok.sh update_pull_request \"$repo_org/$repo_name\" \"$number\" base=\"$prev_remote_branch\""
     ok.sh update_pull_request "$repo_org/$repo_name" "$number" base="$prev_remote_branch" &>/dev/null
     echo "> ok.sh update_pull_request \"$repo_org/$repo_name\" \"$number\" state=\"open\""
