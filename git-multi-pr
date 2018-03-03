@@ -374,7 +374,7 @@ _create_ref_branch() {
   git checkout -b "$ref_branch" &>/dev/null
   git cherry-pick "$sha" &>/dev/null
 
-  _ensure_ref_pr_open "$prev_ref_branch" "$sha"
+  _ensure_ref_pr_openable "$prev_ref_branch" "$sha"
 
   echo "Pushing hidden branch $ref_branch to remote."
   local remote_branch="$(_get_remote_ref_branch "$ref_branch")"
@@ -500,7 +500,7 @@ _create_ref_pr() {
   fi
 }
 
-_ensure_ref_pr_open() {
+_ensure_ref_pr_openable() {
   local prev_ref_branch="$1"
   local ref="$2"
 
@@ -516,11 +516,9 @@ _ensure_ref_pr_open() {
   fi
 
   if [ ! -z "$pr_url" ]; then
-    echo "Ensuring that the PR is open."
+    echo "Ensuring that the PR is openable."
     echo "> ok.sh update_pull_request \"$repo_org/$repo_name\" \"$number\" base=\"$prev_remote_branch\""
     ok.sh update_pull_request "$repo_org/$repo_name" "$number" base="$prev_remote_branch" &>/dev/null
-    echo "> ok.sh update_pull_request \"$repo_org/$repo_name\" \"$number\" state=\"open\""
-    ok.sh update_pull_request "$repo_org/$repo_name" "$number" state="open" &>/dev/null
   fi
 }
 
