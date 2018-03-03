@@ -601,6 +601,7 @@ _get_ref_pr_url() {
 
 submit_pr() {
   echo "${bold}First re-exporting your local queue.${normal}"
+  echo
   export_prs
 
   local refs="$(_git_get_commits --reverse)"
@@ -630,7 +631,7 @@ submit_pr() {
       ok.sh add_comment "$repo_org/$repo_name" "$number" ":dash:"
 
       echo "Check ${underline}$pr_url${normal} for the status on your submission."
-      echo "When it is merged into master, sync your local queue."
+      echo "When it is merged into master, sync your local queue with '$cmd sync'."
       ;;
     *)
       echo "Submit cancelled. Exiting."
