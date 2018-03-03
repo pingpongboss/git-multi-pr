@@ -111,7 +111,7 @@ _print_augmented_queue() {
 }
 
 sync_queue() {
-  git fetch origin
+  git fetch --all --prune
   git rebase "origin/$master"
 
   echo
@@ -578,8 +578,6 @@ _get_ref_pr_url() {
 }
 
 submit_pr() {
-  git fetch origin &>/dev/null
-
   echo "${bold}First re-exporting your local queue.${normal}"
   export_prs
 
