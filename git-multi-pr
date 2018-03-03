@@ -558,25 +558,6 @@ _get_repo_name() {
   echo "${repo_components[$repo_name_index]}"
 }
 
-_is_closed_issue() {
-  local issue_url="$1"
-
-  local repo_org="$(_get_repo_org)"
-  local repo_name="$(_get_repo_name)"
-  local number="$(basename "$issue_url")"
-
-  local filter='"\(.number)\t\(.state)"'
-
-  local response="$(ok.sh _get "/repos/$repo_org/$repo_name/issues/$number" | ok.sh _filter_json "${filter}")"
-  local state="$(echo "$response" | cut -f2)"
-
-  if [[ "$state" == "open" ]]; then
-    return 1
-  else
-    return 0
-  fi
-}
-
 _get_ref_branch_name() {
   local ref="$1"
   local body="$(_git_get_commit_body "$ref")"
@@ -723,7 +704,6 @@ case "$1" in
   _remove_ref_commit_message)           _remove_ref_commit_message "${@:2}" ;;
   _create_ref_pr)                       _create_ref_pr "${@:2}" ;;
   _get_remote_ref_branch)               _get_remote_ref_branch "${@:2}" ;;
-  _is_open_issue)                       _is_open_issue "${@:2}" ;;
   _get_repo_org)                        _get_repo_org "${@:2}" ;;
   _get_repo_name)                       _get_repo_name "${@:2}" ;;
   _ensure_github_permissions)           _ensure_github_permissions "${@:2}" ;;
