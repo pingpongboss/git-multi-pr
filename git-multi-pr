@@ -663,8 +663,6 @@ _git_check_rebase_state() {
 }
 
 case "$1" in
-  status)                               status "${@:2}" ;;
-
   # Step 1
   new)                                  new_queue "${@:2}" ;;
 
@@ -703,5 +701,6 @@ case "$1" in
 
 
   # Help
-  *)                             usage ;;
+  status)                               status "${@:2}" ;;
+  *)                                    usage ;;
 esac
