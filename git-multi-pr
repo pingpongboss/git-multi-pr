@@ -374,7 +374,6 @@ _create_ref_branch() {
   git checkout -b "$ref_branch" &>/dev/null
   git cherry-pick "$sha" &>/dev/null
 
-  echo "Ensuring that the PR is open."
   _ensure_ref_pr_open "$prev_ref_branch" "$sha"
 
   echo "Pushing hidden branch $ref_branch to remote."
@@ -517,6 +516,7 @@ _ensure_ref_pr_open() {
   fi
 
   if [ ! -z "$pr_url" ]; then
+    echo "Ensuring that the PR is open."
     echo "> ok.sh update_pull_request \"$repo_org/$repo_name\" \"$number\" base=\"$prev_remote_branch\""
     ok.sh update_pull_request "$repo_org/$repo_name" "$number" base="$prev_remote_branch" &>/dev/null
     echo "> ok.sh update_pull_request \"$repo_org/$repo_name\" \"$number\" state=\"open\""
