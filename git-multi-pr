@@ -114,80 +114,78 @@ sync_queue() {
   git fetch origin
   git rebase "origin/$master"
 
+  echo
   cleanup
 }
 
 cleanup() {
-  echo
-  _cleanup_branches "$REF_BRANCH_PREFIX"
-}
-
-_cleanup_branches() {
-  # TODO: This currently only checks if the branch is empty.
-  # We should also check if the branch has been orphaned.
-
-  local prefix="$1"
+  local prefix="$REF_BRANCH_PREFIX"
 
   local current_branch="$(_git_get_branch)"
-  local empty_branches=()
+  local orphaned_branches=()
 
   # Ensure clean branch.
   _git_check_clean_state || { echo "$current_branch has uncommitted changes. Exiting."; return 1; }
 
-  if [ -z "$prefix" ]; then
-    local filter="refs/heads/"
-  else
-    local filter="refs/heads/$prefix*"
-  fi
+  # Step 1: For each non-hidden branch, go through every local commit and mark every hidden branch
+  # that is being referenced.
+  local marked_branches=()
+  for branch in $(git for-each-ref --format='%(refname:short)' refs/heads/); do
+    if [[ "$branch" == "$prefix"* ]]; then
+      continue
+    fi
 
-  echo "Checking for empty branches..."
-  for branch in $(git for-each-ref --format='%(refname:short)' $filter); do
     git checkout "$branch" &>/dev/null
-    git rebase "origin/$master" &>/dev/null
+    local commits="$(_git_get_commits)"
+    for commit in $commits; do
+      local ref_branch="$(_get_ref_branch_name "$commit")"
+      marked_branches+=("$ref_branch")
+    done
+  done
 
-    # A conflict means local commits exist.
-    _git_check_clean_state || { git rebase --abort; continue; }
-
-    local commits=$(_git_get_commits)
-    if [ -z "$commits" ] && [ "$branch" != "$master" ]; then
-      empty_branches+=("$branch")
+  # Step 2: For each hidden branch, check if it was previously marked. Hidden that are not marked
+  # will be deleted in the next step.
+  for branch in $(git for-each-ref --format='%(refname:short)' "refs/heads/$prefix*"); do
+    if ! _contains_element "$branch" "${marked_branches[@]}"; then
+      orphaned_branches+=("$branch")
     fi
   done
 
-  if [ "${#empty_branches[@]}" -eq 0 ]; then
+  # Step 3: Delete orphaned branches, close orphaned PRs.
+  if [ "${#orphaned_branches[@]}" -eq 0 ]; then
     echo "Didn't find any empty branches. Exiting."
     git checkout "$current_branch" &>/dev/null
     return 0
   fi
 
-  echo "Found empty branches:"
-  printf '\t%s\n' "${empty_branches[@]}"
+  echo "Found orphaned branches:"
+  printf '\t%s\n' "${orphaned_branches[@]}"
+  echo
+  echo "Cleaning up..."
 
-  if [ -z "$prefix" ]; then
-    echo
-    echo "Delete these empty branches? [y/N]: "
-    read prompt
-  else
-    local prompt="y"
-  fi
+  for branch in "${orphaned_branches[@]}"; do
+    local pr_url="$(_get_ref_pr_url "$branch")"
 
-  case "$prompt" in
-    y | Y)
-      echo "Cleaning up..."
-      ;;
-    *)
-      echo "Cleanup cancelled. Exiting."
-      git checkout "$current_branch" &>/dev/null
-      return 1
-      ;;
-  esac
+    if [[ ! -z "$pr_url" ]]; then
+      local repo_org="$(_get_repo_org)"
+      local repo_name="$(_get_repo_name)"
+      local number="$(basename "$pr_url")"
+      echo "> ok.sh update_pull_request \"$repo_org/$repo_name\" \"$number\" state=\"closed\""
+      ok.sh update_pull_request "$repo_org/$repo_name" "$number" state="closed" &>/dev/null
+    fi
 
-  git checkout "$master" &>/dev/null
-  for branch in "${empty_branches[@]}"; do
-    git branch -D "$branch" &>/dev/null
+    git push origin -d "$branch" &>/dev/null
+    git branch -d "$branch" &>/dev/null
   done
 
   git checkout "$current_branch" &>/dev/null
+}
+
+_contains_element () {
+  local e match="$1"
+  shift
+  for e; do [[ "$e" == "$match" ]] && return 0; done
+  return 1
 }
 
 edit_ref() {
@@ -663,6 +661,10 @@ _git_check_rebase_state() {
   return 0
 }
 
+_git_verify_branch() {
+  git rev-parse --verify $@ &>/dev/null
+}
+
 case "$1" in
   status)                               status "${@:2}" ;;
 
@@ -696,7 +698,6 @@ case "$1" in
   _append_ref_commit_message)           _append_ref_commit_message "${@:2}" ;;
   _remove_ref_commit_message)           _remove_ref_commit_message "${@:2}" ;;
   _create_ref_pr)                       _create_ref_pr "${@:2}" ;;
-  _cleanup_branches)                    _cleanup_branches "${@:2}" ;;
   _is_open_issue)                       _is_open_issue "${@:2}" ;;
   _get_repo_org)                        _get_repo_org "${@:2}" ;;
   _get_repo_name)                       _get_repo_name "${@:2}" ;;
