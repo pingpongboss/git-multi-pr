@@ -314,7 +314,6 @@ export_prs() {
     # Create hidden branch.
     local ref_branch="$(_generate_ref_branch_name "$ref")"
     echo "Will use hidden branch $ref_branch for $ref."
-    _delete_ref_branch "$ref_branch" "$ref"
     _create_ref_branch "$prev_ref_branch" "$ref_branch" "$ref"
 
     # Create PR.
@@ -365,18 +364,6 @@ _generate_ref_branch_name() {
   echo "$ref_branch"
 }
 
-_delete_ref_branch() {
-  local ref_branch="$1"
-  local ref="$2"
-
-  git rev-parse --verify "$ref_branch" &>/dev/null
-  if [ $? -eq 0 ]; then
-    git branch -D "$ref_branch" &>/dev/null
-  fi
-
-  _remove_ref_commit_message "$ref" "$KEY_GIT_MULTI_BRANCH="
-}
-
 _create_ref_branch() {
   local prev_ref_branch="$1"
   local ref_branch="$2"
@@ -386,6 +373,7 @@ _create_ref_branch() {
 
   git branch -D "$ref_branch" &>/dev/null
 
+  _remove_ref_commit_message "$ref" "$KEY_GIT_MULTI_BRANCH="
   _append_ref_commit_message "$ref" "$KEY_GIT_MULTI_BRANCH=$ref_branch"
 
   local sha="$(_get_sha_in_local_queue "$ref")"
