@@ -142,7 +142,9 @@ cleanup() {
     local commits="$(_git_get_commits)"
     for commit in $commits; do
       local ref_branch="$(_get_ref_branch_name "$commit")"
-      visited_branches+=("$ref_branch")
+      if [[ ! -z "$ref_branch" ]]; then
+        visited_branches+=("$ref_branch")
+      fi
     done
   done
 
