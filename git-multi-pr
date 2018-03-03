@@ -63,13 +63,17 @@ sync_queue() {
   git fetch origin
   git rebase "origin/$master"
 
+  cleanup
+}
+
+cleanup() {
   echo
   _cleanup_ref_branches "_git-multi-pr-"
 }
 
 _cleanup_ref_branches() {
   # TODO: This currently only checks if the branch is empty.
-  # We should also check if it only contains commits that have been removed from the local queue.
+  # We should also check if the branch has been orphaned.
 
   local prefix="$1"
 
@@ -469,7 +473,7 @@ _get_repo_org() {
   # Take the repo url.
   local repo_url="$(git remote get-url --push origin)"
   # Remove the extension.
-  repo_url="${repo_url%.*}"
+  repo_url="${repo_url%.git}"
   # Convert : and / to new lines.
   repo_url="$(echo "$repo_url" | tr ':' '\n' | tr '/' '\n')"
   # Split into array.
@@ -484,7 +488,7 @@ _get_repo_name() {
   # Take the repo url.
   local repo_url="$(git remote get-url --push origin)"
   # Remove the extension.
-  repo_url="${repo_url%.*}"
+  repo_url="${repo_url%.git}"
   # Convert : and / to new lines.
   repo_url="$(echo "$repo_url" | tr ':' '\n' | tr '/' '\n')"
   # Split into array.
@@ -627,6 +631,7 @@ case "$1" in
   # Step 2
   queue)                                print_queue "${@:2}" ;;
   sync)                                 sync_queue "${@:2}" ;;
+  cleanup)                              cleanup "${@:2}" ;;
   edit)                                 edit_ref "${@:2}" ;;
   continue)                             continue_rebase "${@:2}" ;;
   abort)                                abort_rebase "${@:2}" ;;
@@ -649,6 +654,8 @@ case "$1" in
   _create_ref_pr)                       _create_ref_pr "${@:2}" ;;
   _cleanup_ref_branches)                _cleanup_ref_branches "${@:2}" ;;
   _is_open_issue)                       _is_open_issue "${@:2}" ;;
+  _get_repo_org)                        _get_repo_org "${@:2}" ;;
+  _get_repo_name)                       _get_repo_name "${@:2}" ;;
 
   # Helper
   _ref_commit_message_helper)           _ref_commit_message_helper "${@:2}" ;;
