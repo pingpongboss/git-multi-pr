@@ -12,6 +12,53 @@ normal=$(tput sgr0)
 
 cmd=$(basename "${BASH_SOURCE[0]}")
 
+status() {
+  command -v jq >/dev/null 2>&1 || {
+    echo "${bold}Missing dependency: jq${normal}"
+    echo "On Mac OS, run:"
+    echo
+    echo -e "\tbrew install jq"
+    echo
+  }
+
+  command -v ok.sh >/dev/null 2>&1 || {
+    echo "${bold}Missing dependency: ok.sh${normal}"
+    echo "Ensure ~/bin is in your PATH, and run:"
+    echo
+    echo -e "\tcurl -o ~/bin/ok.sh https://raw.githubusercontent.com/whiteinge/ok.sh/master/ok.sh ; chmod +x ~/bin/ok.sh"
+    echo
+  }
+
+  _ensure_github_permissions || {
+    echo "${bold}Missing GitHub permissions${normal}"
+    echo "Generate a token on GitHub (https://github.com/settings/tokens) with repo permissions and store it in ~/.netrc:"
+    echo
+    echo -e "\tmachine api.github.com"
+    echo -e "\t    login <username>"
+    echo -e "\t    password <token>"
+    echo -e "\tmachine uploads.github.com"
+    echo -e "\t    login <username>"
+    echo -e "\t    password <token>"
+    echo
+  }
+}
+
+_ensure_github_permissions() {
+  local repo_org="$(_get_repo_org)"
+  local repo_name="$(_get_repo_name)"
+  local filter='"\(.permissions.push)\t\(.permissions.pull)"'
+
+  local response="$(ok.sh _get "/repos/$repo_org/$repo_name" | ok.sh _filter_json "$filter")"
+
+  local push="$(echo "$response" | cut -f1)"
+  local pull="$(echo "$response" | cut -f2)"
+
+  if [[ "$push" != "true" ]] || [[ "$pull" != "true" ]]; then
+    return 1
+  fi
+  return 0
+}
+
 new_queue() {
   if [ -z "$1" ]; then
     usage
@@ -625,6 +672,8 @@ _git_check_rebase_state() {
 }
 
 case "$1" in
+  status)                               status "${@:2}" ;;
+
   # Step 1
   new)                                  new_queue "${@:2}" ;;
 
@@ -642,6 +691,9 @@ case "$1" in
   # Step 4
   submit)                               submit_pr "${@:2}" ;;
 
+  # Helper
+  _ref_commit_message_helper)           _ref_commit_message_helper "${@:2}" ;;
+
   # Private
   _is_local_ref)                        _is_local_ref "${@:2}" ;;
   _get_sha_in_local_queue)              _get_sha_in_local_queue "${@:2}" ;;
@@ -656,9 +708,7 @@ case "$1" in
   _is_open_issue)                       _is_open_issue "${@:2}" ;;
   _get_repo_org)                        _get_repo_org "${@:2}" ;;
   _get_repo_name)                       _get_repo_name "${@:2}" ;;
-
-  # Helper
-  _ref_commit_message_helper)           _ref_commit_message_helper "${@:2}" ;;
+  _ensure_github_permissions)           _ensure_github_permissions "${@:2}" ;;
 
 
   # Help
