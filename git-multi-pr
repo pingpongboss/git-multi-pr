@@ -12,6 +12,10 @@ normal=$(tput sgr0)
 
 cmd=$(basename "${BASH_SOURCE[0]}")
 
+REF_BRANCH_PREFIX="_git-multi-pr-"
+KEY_GIT_MULTI_BRANCH="GIT_MULTI_BRANCH"
+KEY_PR="PR"
+
 status() {
   command -v jq >/dev/null 2>&1 || {
     echo "${bold}Missing dependency: jq${normal}"
@@ -115,10 +119,10 @@ sync_queue() {
 
 cleanup() {
   echo
-  _cleanup_ref_branches "_git-multi-pr-"
+  _cleanup_branches "$REF_BRANCH_PREFIX"
 }
 
-_cleanup_ref_branches() {
+_cleanup_branches() {
   # TODO: This currently only checks if the branch is empty.
   # We should also check if the branch has been orphaned.
 
@@ -337,7 +341,7 @@ _generate_ref_branch_name() {
   fi
 
   # Prefix.
-  ref_branch="_git-multi-pr-"
+  ref_branch="$REF_BRANCH_PREFIX"
 
   # Pick a few words from the subject.
   local subject="$(_git_get_commit_subject "$ref")"
@@ -370,7 +374,7 @@ _delete_ref_branch() {
     git branch -D "$ref_branch" &>/dev/null
   fi
 
-  _remove_ref_commit_message "$ref" "GIT_MULTI_BRANCH="
+  _remove_ref_commit_message "$ref" "$KEY_GIT_MULTI_BRANCH="
 }
 
 _create_ref_branch() {
@@ -382,7 +386,7 @@ _create_ref_branch() {
 
   git branch -D "$ref_branch" &>/dev/null
 
-  _append_ref_commit_message "$ref" "GIT_MULTI_BRANCH=$ref_branch"
+  _append_ref_commit_message "$ref" "$KEY_GIT_MULTI_BRANCH=$ref_branch"
 
   local sha="$(_get_sha_in_local_queue "$ref")"
 
@@ -485,7 +489,7 @@ _create_ref_pr() {
 
   local title="$(_git_get_commit_subject "$ref")"
   local body="$(_git_get_commit_body "$ref")"
-  body="$(echo "$body" | $cmd _ref_commit_message_helper remove GIT_MULTI_BRANCH= | $cmd _ref_commit_message_helper remove PR=)"
+  body="$(echo "$body" | $cmd _ref_commit_message_helper remove "$KEY_GIT_MULTI_BRANCH=" | $cmd _ref_commit_message_helper remove "$KEY_PR=")"
 
   if [[ "$prev_ref_branch" == "origin/$master" ]]; then
     local prev_remote_branch="$master"
@@ -501,8 +505,8 @@ _create_ref_pr() {
     pr_url="$(echo "$response" | cut -f2)"
 
     if [ ! -z "$pr_url" ]; then
-      _remove_ref_commit_message "$ref" "PR="
-      _append_ref_commit_message "$ref" "PR=$pr_url"
+      _remove_ref_commit_message "$ref" "$KEY_PR="
+      _append_ref_commit_message "$ref" "$KEY_PR=$pr_url"
     else
       echo "Failed to create pull request."
       return 1
@@ -569,8 +573,8 @@ _get_ref_branch_name() {
   local ref="$1"
   local body="$(_git_get_commit_body "$ref")"
   echo "$body" | while read -r line; do
-    if [[ "$line" == "GIT_MULTI_BRANCH="* ]]; then
-      echo "${line#GIT_MULTI_BRANCH=}"
+    if [[ "$line" == "$KEY_GIT_MULTI_BRANCH="* ]]; then
+      echo "${line#"$KEY_GIT_MULTI_BRANCH="}"
       break
     fi
   done
@@ -580,8 +584,8 @@ _get_ref_pr_url() {
   local ref="$1"
   local body="$(_git_get_commit_body "$ref")"
   echo "$body" | while read -r line; do
-    if [[ "$line" == "PR="* ]]; then
-      echo "${line#PR=}"
+    if [[ "$line" == "$KEY_PR="* ]]; then
+      echo "${line#"$KEY_PR="}"
       break
     fi
   done
@@ -704,7 +708,7 @@ case "$1" in
   _append_ref_commit_message)           _append_ref_commit_message "${@:2}" ;;
   _remove_ref_commit_message)           _remove_ref_commit_message "${@:2}" ;;
   _create_ref_pr)                       _create_ref_pr "${@:2}" ;;
-  _cleanup_ref_branches)                _cleanup_ref_branches "${@:2}" ;;
+  _cleanup_branches)                    _cleanup_branches "${@:2}" ;;
   _is_open_issue)                       _is_open_issue "${@:2}" ;;
   _get_repo_org)                        _get_repo_org "${@:2}" ;;
   _get_repo_name)                       _get_repo_name "${@:2}" ;;
