@@ -114,58 +114,56 @@ sync_queue() {
   git fetch origin
   git rebase "origin/$master"
 
+  echo
   cleanup
 }
 
 cleanup() {
-  echo
-  _cleanup_branches "$REF_BRANCH_PREFIX"
-}
-
-_cleanup_branches() {
-  # TODO: This currently only checks if the branch is empty.
-  # We should also check if the branch has been orphaned.
-
-  local prefix="$1"
+  local prefix="$REF_BRANCH_PREFIX"
 
   local current_branch="$(_git_get_branch)"
-  local empty_branches=()
+  local orphaned_branches=()
 
   # Ensure clean branch.
   _git_check_clean_state || { echo "$current_branch has uncommitted changes. Exiting."; return 1; }
 
-  if [ -z "$prefix" ]; then
-    local filter="refs/heads/"
-  else
-    local filter="refs/heads/$prefix*"
-  fi
+  # Step 1: For each non-hidden branch, go through every local commit and mark every hidden branch
+  # that is being referenced.
+  local marked_branches=()
+  for branch in $(git for-each-ref --format='%(refname:short)' refs/heads/); do
+    if [[ "$branch" == "$prefix"* ]]; then
+      continue
+    fi
 
-  echo "Checking for empty branches..."
-  for branch in $(git for-each-ref --format='%(refname:short)' $filter); do
     git checkout "$branch" &>/dev/null
-    git rebase "origin/$master" &>/dev/null
+    local commits="$(_git_get_commits)"
+    for commit in $commits; do
+      local ref_branch="$(_get_ref_branch_name "$commit")"
+      marked_branches+=("$ref_branch")
+    done
+  done
 
-    # A conflict means local commits exist.
-    _git_check_clean_state || { git rebase --abort; continue; }
-
-    local commits=$(_git_get_commits)
-    if [ -z "$commits" ] && [ "$branch" != "$master" ]; then
-      empty_branches+=("$branch")
+  # Step 2: For each hidden branch, check if it was previously marked. Hidden that are not marked
+  # will be deleted in the next step.
+  for branch in $(git for-each-ref --format='%(refname:short)' "refs/heads/$prefix*"); do
+    if ! _contains_element "$branch" "${marked_branches[@]}"; then
+      orphaned_branches+=("$branch")
     fi
   done
 
-  if [ "${#empty_branches[@]}" -eq 0 ]; then
+  # Step 3: Prompt the user for deletion of orphaned branches.
+  if [ "${#orphaned_branches[@]}" -eq 0 ]; then
     echo "Didn't find any empty branches. Exiting."
     git checkout "$current_branch" &>/dev/null
     return 0
   fi
 
-  echo "Found empty branches:"
-  printf '\t%s\n' "${empty_branches[@]}"
+  echo "Found orphaned branches:"
+  printf '\t%s\n' "${orphaned_branches[@]}"
 
   if [ -z "$prefix" ]; then
     echo
-    echo "Delete these empty branches? [y/N]: "
+    echo "Delete these orphaned branches? [y/N]: "
     read prompt
   else
     local prompt="y"
@@ -183,11 +181,18 @@ _cleanup_branches() {
   esac
 
   git checkout "$master" &>/dev/null
-  for branch in "${empty_branches[@]}"; do
+  for branch in "${orphaned_branches[@]}"; do
     git branch -D "$branch" &>/dev/null
   done
 
   git checkout "$current_branch" &>/dev/null
+}
+
+_contains_element () {
+  local e match="$1"
+  shift
+  for e; do [[ "$e" == "$match" ]] && return 0; done
+  return 1
 }
 
 edit_ref() {
