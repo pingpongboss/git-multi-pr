@@ -110,6 +110,19 @@ _print_augmented_queue() {
   done
 }
 
+_get_ref_pr_url() {
+  local ref="$1"
+
+  local pr_number="$(_get_ref_pr_number "$ref")"
+
+  if [[ ! -z "$pr_number" ]]; then
+    local repo_org="$(_get_repo_org)"
+    local repo_name="$(_get_repo_name)"
+
+    echo "https://github.com/$repo_org/$repo_name/pull/$pr_number"
+  fi
+}
+
 sync_queue() {
   echo "Syncing..."
   git fetch --all --prune &>/dev/null
@@ -467,8 +480,7 @@ _create_ref_pr() {
 
   local repo_org="$(_get_repo_org)"
   local repo_name="$(_get_repo_name)"
-  local pr_url="$(_get_ref_pr_url "$ref")"
-  local number="$(basename "$pr_url")"
+  local pr_number="$(_get_ref_pr_number "$ref")"
 
   local title="$(_git_get_commit_subject "$ref")"
   local body="$(_git_get_commit_body "$ref")"
@@ -481,24 +493,24 @@ _create_ref_pr() {
   fi
   local remote_branch="$(_get_remote_ref_branch "$ref_branch")"
 
-  if [ -z "$pr_url" ]; then
+  if [ -z "$pr_number" ]; then
     echo "> ok.sh create_pull_request \"$repo_org/$repo_name\" \"$title\" \"$remote_branch\" \"$prev_remote_branch\" body=\"$body\""
     local response="$(ok.sh create_pull_request "$repo_org/$repo_name" "$title" "$remote_branch" "$prev_remote_branch" body="$body")"
 
-    pr_url="$(echo "$response" | cut -f2)"
+    pr_number="$(echo "$response" | cut -f1)"
 
-    if [ ! -z "$pr_url" ]; then
+    if [ ! -z "$pr_number" ]; then
       _remove_ref_commit_message "$ref" "$KEY_PR="
-      _append_ref_commit_message "$ref" "$KEY_PR=$pr_url"
+      _append_ref_commit_message "$ref" "$KEY_PR=$pr_number"
     else
       echo "Failed to create pull request."
       return 1
     fi
   else
-    echo "Found existing PR #$number for $ref_branch."
+    echo "Found existing PR #$pr_number for $ref_branch."
 
-    echo "> ok.sh update_pull_request \"$repo_org/$repo_name\" \"$number\" title=\"$title\" body=\"$body\" base=\"$prev_remote_branch\" state=\"open\""
-    ok.sh update_pull_request "$repo_org/$repo_name" "$number" title="$title" body="$body" base="$prev_remote_branch" state="open" &>/dev/null
+    echo "> ok.sh update_pull_request \"$repo_org/$repo_name\" \"$pr_number\" title=\"$title\" body=\"$body\" base=\"$prev_remote_branch\" state=\"open\""
+    ok.sh update_pull_request "$repo_org/$repo_name" "$pr_number" title="$title" body="$body" base="$prev_remote_branch" state="open" &>/dev/null
   fi
 }
 
@@ -508,8 +520,7 @@ _ensure_ref_pr_open() {
 
   local repo_org="$(_get_repo_org)"
   local repo_name="$(_get_repo_name)"
-  local pr_url="$(_get_ref_pr_url "$ref")"
-  local number="$(basename "$pr_url")"
+  local pr_number="$(_get_ref_pr_number "$ref")"
 
   if [[ "$prev_ref_branch" == "origin/$master" ]]; then
     local prev_remote_branch="$master"
@@ -517,14 +528,14 @@ _ensure_ref_pr_open() {
     local prev_remote_branch="$(_get_remote_ref_branch "$prev_ref_branch")"
   fi
 
-  if [ ! -z "$pr_url" ]; then
+  if [ ! -z "$pr_number" ]; then
     echo "Ensuring that the PR is open."
     # The PR's base must be set to an open branch, or else the PR may become closed forever.
     # https://github.com/isaacs/github/issues/361
-    echo "> ok.sh update_pull_request \"$repo_org/$repo_name\" \"$number\" base=\"$prev_remote_branch\""
-    ok.sh update_pull_request "$repo_org/$repo_name" "$number" base="$prev_remote_branch" &>/dev/null
-    echo "> ok.sh update_pull_request \"$repo_org/$repo_name\" \"$number\" state=\"open\""
-    ok.sh update_pull_request "$repo_org/$repo_name" "$number" state="open" &>/dev/null
+    echo "> ok.sh update_pull_request \"$repo_org/$repo_name\" \"$pr_number\" base=\"$prev_remote_branch\""
+    ok.sh update_pull_request "$repo_org/$repo_name" "$pr_number" base="$prev_remote_branch" &>/dev/null
+    echo "> ok.sh update_pull_request \"$repo_org/$repo_name\" \"$pr_number\" state=\"open\""
+    ok.sh update_pull_request "$repo_org/$repo_name" "$pr_number" state="open" &>/dev/null
   fi
 }
 
@@ -569,7 +580,7 @@ _get_ref_branch_name() {
   done
 }
 
-_get_ref_pr_url() {
+_get_ref_pr_number() {
   local ref="$1"
   local body="$(_git_get_commit_body "$ref")"
   echo "$body" | while read -r line; do
@@ -600,16 +611,16 @@ submit_pr() {
     y | Y)
       local repo_org="$(_get_repo_org)"
       local repo_name="$(_get_repo_name)"
+      local pr_number="$(_get_ref_pr_number "$ref")"
       local pr_url="$(_get_ref_pr_url "$ref")"
-      local number="$(basename "$pr_url")"
 
       if [[ "${#refs_array[@]}" -ge 2 ]]; then
         local next_ref="${refs_array[1]}"
         _ensure_ref_pr_open "origin/$master" "$next_ref"
       fi
 
-      echo "> ok.sh add_comment \"$repo_org/$repo_name\" \"$number\" \":dash:\""
-      ok.sh add_comment "$repo_org/$repo_name" "$number" ":dash:"
+      echo "> ok.sh add_comment \"$repo_org/$repo_name\" \"$pr_number\" \":dash:\""
+      ok.sh add_comment "$repo_org/$repo_name" "$pr_number" ":dash:"
 
       echo "Check ${underline}$pr_url${normal} for the status on your submission."
       echo "When it is merged into master, sync your local queue with '$cmd sync'."
@@ -696,7 +707,7 @@ case "$1" in
   # Private
   _is_local_ref)                        _is_local_ref "${@:2}" ;;
   _get_sha_in_local_queue)              _get_sha_in_local_queue "${@:2}" ;;
-  _get_ref_pr_url)                      _get_ref_pr_url "${@:2}" ;;
+  _get_ref_pr_number)                   _get_ref_pr_number "${@:2}" ;;
   _get_ref_branch_name)                 _get_ref_branch_name "${@:2}" ;;
   _create_ref_branch)                   _create_ref_branch "${@:2}" ;;
   _generate_ref_branch_name)            _generate_ref_branch_name "${@:2}" ;;
