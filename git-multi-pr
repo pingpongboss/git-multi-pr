@@ -302,12 +302,12 @@ export_prs() {
 
     echo "${bold}Exporting commit at $ref: $subject${normal}"
 
-    # Create hidden branch.
+    # Create/update hidden branch.
     local ref_branch="$(_generate_ref_branch_name "$ref")"
     echo "Will use hidden branch $ref_branch for $ref."
     _create_ref_branch "$prev_ref_branch" "$ref_branch" "$ref"
 
-    # Create PR.
+    # Create/update PR.
     _create_ref_pr "$prev_ref_branch" "$ref_branch" "$ref"
 
     i="$(($i-1))"
@@ -373,6 +373,9 @@ _create_ref_branch() {
   git checkout "$prev_ref_branch" &>/dev/null
   git checkout -b "$ref_branch" &>/dev/null
   git cherry-pick "$sha" &>/dev/null
+
+  echo "Ensuring that the PR is open."
+  _ensure_ref_pr_open "$prev_ref_branch" "$sha"
 
   echo "Pushing hidden branch $ref_branch to remote."
   local remote_branch="$(_get_remote_ref_branch "$ref_branch")"
@@ -477,7 +480,7 @@ _create_ref_pr() {
   fi
   local remote_branch="$(_get_remote_ref_branch "$ref_branch")"
 
-  if [ -z "$pr_url" ] || _is_closed_issue "$pr_url"; then
+  if [ -z "$pr_url" ]; then
     echo "> ok.sh create_pull_request \"$repo_org/$repo_name\" \"$title\" \"$remote_branch\" \"$prev_remote_branch\" body=\"$body\""
     local response="$(ok.sh create_pull_request "$repo_org/$repo_name" "$title" "$remote_branch" "$prev_remote_branch" body="$body")"
 
@@ -496,7 +499,29 @@ _create_ref_pr() {
     echo "> ok.sh update_pull_request \"$repo_org/$repo_name\" \"$number\" title=\"$title\" body=\"$body\" base=\"$prev_remote_branch\" state=\"open\""
     ok.sh update_pull_request "$repo_org/$repo_name" "$number" title="$title" body="$body" base="$prev_remote_branch" state="open" &>/dev/null
   fi
+}
 
+_ensure_ref_pr_open() {
+  local prev_ref_branch="$1"
+  local ref="$2"
+
+  local repo_org="$(_get_repo_org)"
+  local repo_name="$(_get_repo_name)"
+  local pr_url="$(_get_ref_pr_url "$ref")"
+  local number="$(basename "$pr_url")"
+
+  if [[ "$prev_ref_branch" == "origin/$master" ]]; then
+    local prev_remote_branch="$master"
+  else
+    local prev_remote_branch="$(_get_remote_ref_branch "$prev_ref_branch")"
+  fi
+
+  if [ ! -z "$pr_url" ]; then
+    echo "> ok.sh update_pull_request \"$repo_org/$repo_name\" \"$number\" base=\"$prev_remote_branch\""
+    ok.sh update_pull_request "$repo_org/$repo_name" "$number" base="$prev_remote_branch" &>/dev/null
+    echo "> ok.sh update_pull_request \"$repo_org/$repo_name\" \"$number\" state=\"open\""
+    ok.sh update_pull_request "$repo_org/$repo_name" "$number" state="open" &>/dev/null
+  fi
 }
 
 _get_repo_org() {
