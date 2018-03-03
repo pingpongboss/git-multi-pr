@@ -115,80 +115,70 @@ sync_queue() {
   git fetch --all --prune &>/dev/null
   git rebase "origin/$master"
 
+  echo
   cleanup
 }
 
 cleanup() {
-  echo
-  _cleanup_branches "$REF_BRANCH_PREFIX"
-}
-
-_cleanup_branches() {
-  # TODO: This currently only checks if the branch is empty.
-  # We should also check if the branch has been orphaned.
-
-  local prefix="$1"
+  local prefix="$REF_BRANCH_PREFIX"
 
   local current_branch="$(_git_get_branch)"
-  local empty_branches=()
+  local obsolete_branches=()
 
   # Ensure clean branch.
   _git_check_clean_state || { echo "$current_branch has uncommitted changes. Exiting."; return 1; }
 
-  if [ -z "$prefix" ]; then
-    local filter="refs/heads/"
-  else
-    local filter="refs/heads/$prefix*"
-  fi
+  echo "Searching for obsolete branches..."
 
-  echo "Checking for empty branches..."
-  for branch in $(git for-each-ref --format='%(refname:short)' $filter); do
+  # Step 1: For each non-hidden branch, go through every local commit and mark every referenced
+  # hidden branch as visited.
+  local visited_branches=()
+  for branch in $(git for-each-ref --format='%(refname:short)' refs/heads/); do
+    if [[ "$branch" == "$prefix"* ]]; then
+      continue
+    fi
+
     git checkout "$branch" &>/dev/null
-    git rebase "origin/$master" &>/dev/null
+    local commits="$(_git_get_commits)"
+    for commit in $commits; do
+      local ref_branch="$(_get_ref_branch_name "$commit")"
+      visited_branches+=("$ref_branch")
+    done
+  done
 
-    # A conflict means local commits exist.
-    _git_check_clean_state || { git rebase --abort; continue; }
-
-    local commits=$(_git_get_commits)
-    if [ -z "$commits" ] && [ "$branch" != "$master" ]; then
-      empty_branches+=("$branch")
+  # Step 2: For each hidden branch, check if it was previously visited. Hidden that were not visited
+  # will be deleted in the next step.
+  for branch in $(git for-each-ref --format='%(refname:short)' "refs/heads/$prefix*"); do
+    if ! _contains_element "$branch" "${visited_branches[@]}"; then
+      obsolete_branches+=("$branch")
     fi
   done
 
-  if [ "${#empty_branches[@]}" -eq 0 ]; then
-    echo "Didn't find any empty branches. Exiting."
+  # Step 3: Delete obsolete branches.
+  if [ "${#obsolete_branches[@]}" -eq 0 ]; then
+    echo "Didn't find any obsolete branches."
     git checkout "$current_branch" &>/dev/null
     return 0
   fi
 
-  echo "Found empty branches:"
-  printf '\t%s\n' "${empty_branches[@]}"
+  echo "Found obsolete branches:"
+  printf '\t%s\n' "${obsolete_branches[@]}"
 
-  if [ -z "$prefix" ]; then
+  for branch in "${obsolete_branches[@]}"; do
     echo
-    echo "Delete these empty branches? [y/N]: "
-    read prompt
-  else
-    local prompt="y"
-  fi
-
-  case "$prompt" in
-    y | Y)
-      echo "Cleaning up..."
-      ;;
-    *)
-      echo "Cleanup cancelled. Exiting."
-      git checkout "$current_branch" &>/dev/null
-      return 1
-      ;;
-  esac
-
-  git checkout "$master" &>/dev/null
-  for branch in "${empty_branches[@]}"; do
+    echo "Cleaning up $branch..."
+    git push origin -d "$(_get_remote_ref_branch "$branch")" &>/dev/null
     git branch -D "$branch" &>/dev/null
   done
 
   git checkout "$current_branch" &>/dev/null
+}
+
+_contains_element () {
+  local e match="$1"
+  shift
+  for e; do [[ "$e" == "$match" ]] && return 0; done
+  return 1
 }
 
 edit_ref() {
@@ -662,6 +652,10 @@ _git_check_rebase_state() {
   return 0
 }
 
+_git_verify_branch() {
+  git rev-parse --verify $@ &>/dev/null
+}
+
 case "$1" in
   # Step 1
   new)                                  new_queue "${@:2}" ;;
@@ -693,7 +687,7 @@ case "$1" in
   _append_ref_commit_message)           _append_ref_commit_message "${@:2}" ;;
   _remove_ref_commit_message)           _remove_ref_commit_message "${@:2}" ;;
   _create_ref_pr)                       _create_ref_pr "${@:2}" ;;
-  _cleanup_branches)                    _cleanup_branches "${@:2}" ;;
+  _get_remote_ref_branch)               _get_remote_ref_branch "${@:2}" ;;
   _is_open_issue)                       _is_open_issue "${@:2}" ;;
   _get_repo_org)                        _get_repo_org "${@:2}" ;;
   _get_repo_name)                       _get_repo_name "${@:2}" ;;
