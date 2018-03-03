@@ -400,9 +400,9 @@ _remove_ref_commit_message() {
   local message="$2"
 
   echo "Removing $message from commit message of $ref."
-  _edit_ref "$ref"
-  git filter-branch -f --msg-filter "$cmd _ref_commit_message_helper remove $message" HEAD~..HEAD
-  _continue_rebase
+  _edit_ref "$ref" &>/dev/null
+  git filter-branch -f --msg-filter "$cmd _ref_commit_message_helper remove $message" HEAD~..HEAD &>/dev/null
+  _continue_rebase &>/dev/null
 }
 
 _ref_commit_message_helper() {
