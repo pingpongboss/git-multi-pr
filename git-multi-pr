@@ -477,7 +477,7 @@ _create_ref_pr() {
   fi
   local remote_branch="$(_get_remote_ref_branch "$ref_branch")"
 
-  if [ -z "$pr_url" ] || _is_closed_issue "$pr_url"; then
+  if [ -z "$pr_url" ]; then
     echo "> ok.sh create_pull_request \"$repo_org/$repo_name\" \"$title\" \"$remote_branch\" \"$prev_remote_branch\" body=\"$body\""
     local response="$(ok.sh create_pull_request "$repo_org/$repo_name" "$title" "$remote_branch" "$prev_remote_branch" body="$body")"
 
