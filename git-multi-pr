@@ -519,7 +519,8 @@ _ensure_ref_pr_open() {
 
   if [ ! -z "$pr_url" ]; then
     echo "Ensuring that the PR is open."
-    # The base branch must be set to an open branch https://github.com/isaacs/github/issues/361
+    # The PR's base must be set to an open branch, or else the PR may become closed forever.
+    # https://github.com/isaacs/github/issues/361
     echo "> ok.sh update_pull_request \"$repo_org/$repo_name\" \"$number\" base=\"$prev_remote_branch\""
     ok.sh update_pull_request "$repo_org/$repo_name" "$number" base="$prev_remote_branch" &>/dev/null
     echo "> ok.sh update_pull_request \"$repo_org/$repo_name\" \"$number\" state=\"open\""
@@ -619,6 +620,11 @@ submit_pr() {
       local repo_name="$(_get_repo_name)"
       local pr_url="$(_get_ref_pr_url "$ref")"
       local number="$(basename "$pr_url")"
+
+      if [[ "${#refs_array[@]}" -ge 2 ]]; then
+        local next_ref="${refs_array[1]}"
+        _ensure_ref_pr_open "origin/$master" "$next_ref"
+      fi
 
       echo "> ok.sh add_comment \"$repo_org/$repo_name\" \"$number\" \":dash:\""
       ok.sh add_comment "$repo_org/$repo_name" "$number" ":dash:"
