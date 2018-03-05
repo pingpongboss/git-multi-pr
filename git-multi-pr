@@ -486,6 +486,10 @@ _create_ref_pr() {
   local body="$(_git_get_commit_body "$ref")"
   body="$(echo "$body" | $cmd _ref_commit_message_helper remove "$KEY_GIT_MULTI_BRANCH=" | $cmd _ref_commit_message_helper remove "$KEY_PR=")"
 
+  # Sanitize.
+  title="$(printf "%q" "$title")"
+  body="$(printf "%q" "$body")"
+
   if [[ "$prev_ref_branch" == "origin/$master" ]]; then
     local prev_remote_branch="$master"
   else
@@ -494,9 +498,12 @@ _create_ref_pr() {
   local remote_branch="$(_get_remote_ref_branch "$ref_branch")"
 
   if [ -z "$pr_number" ]; then
-    echo "> ok.sh create_pull_request \"$repo_org/$repo_name\" \"$title\" \"$remote_branch\" \"$prev_remote_branch\" body=\"$body\""
-    local response="$(ok.sh create_pull_request "$repo_org/$repo_name" "$title" "$remote_branch" "$prev_remote_branch" body="$body")"
+    echo "> ok.sh create_pull_request $repo_org/$repo_name $title $remote_branch $prev_remote_branch body=$body"
+    local response="$(ok.sh create_pull_request $repo_org/$repo_name $title $remote_branch $prev_remote_branch body=$body)"
 
+    echo "response:"
+    echo "$response"
+    echo
     pr_number="$(echo "$response" | cut -f1)"
 
     if [ ! -z "$pr_number" ]; then
@@ -509,7 +516,7 @@ _create_ref_pr() {
   else
     echo "Found existing PR #$pr_number for $ref_branch."
 
-    echo "> ok.sh update_pull_request \"$repo_org/$repo_name\" \"$pr_number\" title=\"$title\" body=\"$body\" base=\"$prev_remote_branch\" state=\"open\""
+    echo "> ok.sh update_pull_request $repo_org/$repo_name $pr_number title=$title body=$body base=$prev_remote_branch state=open"
     ok.sh update_pull_request "$repo_org/$repo_name" "$pr_number" title="$title" body="$body" base="$prev_remote_branch" state="open" &>/dev/null
   fi
 }
@@ -532,9 +539,9 @@ _ensure_ref_pr_open() {
     echo "Ensuring that the PR is open."
     # The PR's base must be set to an open branch, or else the PR may become closed forever.
     # https://github.com/isaacs/github/issues/361
-    echo "> ok.sh update_pull_request \"$repo_org/$repo_name\" \"$pr_number\" base=\"$prev_remote_branch\""
+    echo "> ok.sh update_pull_request $repo_org/$repo_name $pr_number base=$prev_remote_branch"
     ok.sh update_pull_request "$repo_org/$repo_name" "$pr_number" base="$prev_remote_branch" &>/dev/null
-    echo "> ok.sh update_pull_request \"$repo_org/$repo_name\" \"$pr_number\" state=\"open\""
+    echo "> ok.sh update_pull_request $repo_org/$repo_name $pr_number state=open"
     ok.sh update_pull_request "$repo_org/$repo_name" "$pr_number" state="open" &>/dev/null
   fi
 }
@@ -619,7 +626,7 @@ submit_pr() {
         _ensure_ref_pr_open "origin/$master" "$next_ref"
       fi
 
-      echo "> ok.sh add_comment \"$repo_org/$repo_name\" \"$pr_number\" \":dash:\""
+      echo "> ok.sh add_comment $repo_org/$repo_name $pr_number :dash:"
       ok.sh add_comment "$repo_org/$repo_name" "$pr_number" ":dash:"
 
       echo "Check ${underline}$pr_url${normal} for the status on your submission."
