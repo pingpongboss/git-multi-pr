@@ -182,8 +182,8 @@ cleanup() {
   for branch in "${obsolete_branches[@]}"; do
     echo
     echo "Cleaning up $branch..."
-    git push origin -d "$(_get_remote_ref_branch "$branch")" &>/dev/null
-    git branch -D "$branch" &>/dev/null
+    git push origin -d "$(_get_remote_ref_branch "$branch")"
+    git branch -D "$branch"
   done
 
   git checkout "$current_branch" &>/dev/null
@@ -490,9 +490,6 @@ _create_ref_pr() {
   title="$(_escape "$title")"
   body="$(_escape "$body")"
 
-  echo "$title"
-  echo "$body"
-
   if [[ "$prev_ref_branch" == "origin/$master" ]]; then
     local prev_remote_branch="$master"
   else
@@ -503,10 +500,6 @@ _create_ref_pr() {
   if [ -z "$pr_number" ]; then
     echo "> ok.sh \"create_pull_request\" \"$repo_org/$repo_name\" \"$title\" \"$remote_branch\" \"$prev_remote_branch\" body=\"$body\""
     local response="$(ok.sh create_pull_request "$repo_org/$repo_name" "$title" "$remote_branch" "$prev_remote_branch" body="$body")"
-
-    echo "response:"
-    echo "$response"
-    echo
     pr_number="$(echo "$response" | cut -f1)"
 
     if [ ! -z "$pr_number" ]; then
