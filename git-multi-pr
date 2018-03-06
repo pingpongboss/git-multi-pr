@@ -128,6 +128,7 @@ sync_queue() {
   git fetch --all --prune &>/dev/null
   git rebase "origin/$master"
 
+  # TODO: Only cleanup if flag is passed in.
   echo
   cleanup
 }
@@ -601,10 +602,6 @@ _get_ref_pr_number() {
 }
 
 submit_pr() {
-  echo "${bold}First re-exporting your local queue.${normal}"
-  echo
-  export_prs
-
   local refs="$(_git_get_commits --reverse)"
   local IFS=$'\n' refs_array=($refs)
   local ref="${refs_array[0]}"
@@ -639,6 +636,18 @@ submit_pr() {
       return 1
       ;;
   esac
+}
+
+_get_pr_status() {
+  # open, pending (submitting), merged (submitted), closed (dropped)
+
+  local number="$1"
+
+  local repo_org="$(_get_repo_org)"
+  local repo_name="$(_get_repo_name)"
+
+  local response="$(ok.sh _get "/repos/$repo_org/$repo_name/pulls/$number/merge")"
+  echo "$response"
 }
 
 _git_get_branch() {
@@ -727,6 +736,7 @@ case "$1" in
   _get_repo_org)                        _get_repo_org "${@:2}" ;;
   _get_repo_name)                       _get_repo_name "${@:2}" ;;
   _ensure_github_permissions)           _ensure_github_permissions "${@:2}" ;;
+  _get_pr_status)                       _get_pr_status "${@:2}" ;;
 
 
   # Help
