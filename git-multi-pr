@@ -523,7 +523,7 @@ _create_ref_pr() {
 _escape() {
   # TODO: I can't get this to escape correctly for the following commit message:
   # Hello, world! \"
-  echo "$1" | tr '\' '\\' | tr '$' '\$' | tr '`' '\`' | tr '"' '\"'
+  echo "$1" | tr '\' '\\' | tr '$' '\$' | tr '`' '\`' | tr '"' '\"' | tr '[' '(' | tr ']' ')'
 }
 
 _ensure_ref_pr_open() {
