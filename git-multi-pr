@@ -505,6 +505,9 @@ _create_ref_pr() {
     if [ ! -z "$pr_number" ]; then
       _remove_ref_commit_message "$ref" "$KEY_PR="
       _append_ref_commit_message "$ref" "$KEY_PR=$pr_number"
+
+      echo "> ok.sh add_comment \"$repo_org/$repo_name\" \"$pr_number\" \":lock: PR author to submit via '$cmd submit'\""
+      ok.sh add_comment "$repo_org/$repo_name" "$pr_number" ":lock: PR author to submit via $cmd submit"
     else
       echo "Failed to create pull request."
       return 1
@@ -609,6 +612,8 @@ submit_pr() {
   local IFS=$'\n' refs_array=($refs)
   local ref="${refs_array[0]}"
 
+  # TODO: Check that PR base is master
+
   echo
   echo "${bold}Submitting: $(git log -n 1 --oneline --no-decorate "$ref")${normal}"
 
@@ -627,6 +632,9 @@ submit_pr() {
         local next_ref="${refs_array[1]}"
         _ensure_ref_pr_open "origin/$master" "$next_ref"
       fi
+
+      echo "> ok.sh add_comment \"$repo_org/$repo_name\" \"$pr_number\" \":unlock: Submitting via $cmd submit\""
+      ok.sh add_comment "$repo_org/$repo_name" "$pr_number" ":unlock: Submitting via $cmd submit"
 
       echo "> ok.sh add_comment \"$repo_org/$repo_name\" \"$pr_number\" \":dash:\""
       ok.sh add_comment "$repo_org/$repo_name" "$pr_number" ":dash:"
