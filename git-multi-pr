@@ -86,7 +86,8 @@ print_queue() {
   if [ "$count" -eq 0 ]; then
     echo "All of your commits have already landed on origin/$master."
   else
-    _print_augmented_queue "$refs"
+    local output="$(_print_augmented_queue "$refs")"
+    echo "$output"
   fi
 }
 
