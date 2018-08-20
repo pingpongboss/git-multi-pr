@@ -128,9 +128,6 @@ sync_queue() {
   echo "Syncing..."
   git fetch --all --prune &>/dev/null
   git rebase "origin/$master"
-
-  echo
-  cleanup
 }
 
 cleanup() {
