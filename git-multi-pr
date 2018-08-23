@@ -17,7 +17,21 @@ KEY_GIT_MULTI_BRANCH="GIT_MULTI_BRANCH"
 KEY_PR="PR"
 
 status() {
+  local success=true
+
+  [[ "$(git config --global --get rerere.enabled)" == "true" ]] || {
+    success=false
+
+    echo "${bold}Missing config: git rerere${normal}"
+    echo "On Mac OS, run:"
+    echo
+    echo -e "\tgit config --global rerere.enabled true"
+    echo
+  }
+
   command -v jq >/dev/null 2>&1 || {
+    success=false
+
     echo "${bold}Missing dependency: jq${normal}"
     echo "On Mac OS, run:"
     echo
@@ -26,6 +40,8 @@ status() {
   }
 
   command -v ok.sh >/dev/null 2>&1 || {
+    success=false
+
     echo "${bold}Missing dependency: ok.sh${normal}"
     echo "Ensure ~/bin is in your PATH, and run:"
     echo
@@ -34,6 +50,8 @@ status() {
   }
 
   _ensure_github_permissions || {
+    success=false
+
     echo "${bold}Missing GitHub permissions${normal}"
     echo "Generate a token on GitHub (https://github.com/settings/tokens) with repo permissions and store it in ~/.netrc:"
     echo
@@ -45,6 +63,10 @@ status() {
     echo -e "\t    password <token>"
     echo
   }
+
+  if $success; then
+    echo "All required configurations and dependencies are installed."
+  fi
 }
 
 _ensure_github_permissions() {
