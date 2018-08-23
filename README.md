@@ -1,3 +1,27 @@
+<!-- START doctoc generated TOC please keep comment here to allow auto update -->
+<!-- DON'T EDIT THIS SECTION, INSTEAD RE-RUN doctoc TO UPDATE -->
+**Table of Contents**  *generated with [DocToc](https://github.com/thlorenz/doctoc)*
+
+- [git-multi-pr](#git-multi-pr)
+  - [Philosophy](#philosophy)
+  - [Getting started](#getting-started)
+  - [Basic usage](#basic-usage)
+    - [Start a new feature branch](#start-a-new-feature-branch)
+    - [Start a new change](#start-a-new-change)
+    - [Update a change](#update-a-change)
+    - [Start a change which depends on another change](#start-a-change-which-depends-on-another-change)
+    - [List the changes in a feature branch](#list-the-changes-in-a-feature-branch)
+    - [Edit a previous change](#edit-a-previous-change)
+    - [Sync your feature branch with master](#sync-your-feature-branch-with-master)
+    - [Export your changes to PRs](#export-your-changes-to-prs)
+    - [Add reviewers, iterate on the PRs, and get approval](#add-reviewers-iterate-on-the-prs-and-get-approval)
+    - [Merge the PRs](#merge-the-prs)
+  - [Advanced usage](#advanced-usage)
+    - [Reordering your changes](#reordering-your-changes)
+  - [How it works](#how-it-works)
+
+<!-- END doctoc generated TOC please keep comment here to allow auto update -->
+
 # git-multi-pr
 
 `git-multi-pr` is a tool that allows you to work on multiple PRs within a single git branch. Every commit in your local history is exported out to separate PRs, each containing only the changes in its corresponding commit to make it easy for your reviewers to view and provide feedback.
