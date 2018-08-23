@@ -5,6 +5,7 @@
 - [git-multi-pr](#git-multi-pr)
   - [Philosophy](#philosophy)
   - [Getting started](#getting-started)
+  - [Cheat sheet](#cheat-sheet)
   - [Basic usage](#basic-usage)
     - [Start a new feature branch](#start-a-new-feature-branch)
     - [Start a new change](#start-a-new-change)
