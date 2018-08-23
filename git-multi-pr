@@ -11,6 +11,7 @@ underline=$(tput smul)
 normal=$(tput sgr0)
 
 cmd=$(basename "${BASH_SOURCE[0]}")
+oksh="$HOME/bin/ok.sh"
 
 REF_BRANCH_PREFIX="_git-multi-pr-"
 KEY_GIT_MULTI_BRANCH="GIT_MULTI_BRANCH"
@@ -23,7 +24,7 @@ status() {
     success=false
 
     echo "${bold}Missing config: git rerere${normal}"
-    echo "On Mac OS, run:"
+    echo "Run:"
     echo
     echo -e "\tgit config --global rerere.enabled true"
     echo
@@ -39,13 +40,13 @@ status() {
     echo
   }
 
-  command -v ok.sh >/dev/null 2>&1 || {
+  [[ -f $oksh ]] || {
     success=false
 
     echo "${bold}Missing dependency: ok.sh${normal}"
-    echo "Ensure ~/bin is in your PATH, and run:"
+    echo "Run:"
     echo
-    echo -e "\tcurl -o ~/bin/ok.sh https://raw.githubusercontent.com/whiteinge/ok.sh/master/ok.sh ; chmod +x ~/bin/ok.sh"
+    echo -e "\tmkdir -p $HOME/bin ; curl -o $oksh https://raw.githubusercontent.com/whiteinge/ok.sh/master/ok.sh ; chmod +x $oksh"
     echo
   }
 
@@ -74,7 +75,7 @@ _ensure_github_permissions() {
   local repo_name="$(_get_repo_name)"
   local filter='"\(.permissions.push)\t\(.permissions.pull)"'
 
-  local response="$(ok.sh _get "/repos/$repo_org/$repo_name" | ok.sh _filter_json "$filter")"
+  local response="$($oksh _get "/repos/$repo_org/$repo_name" | $oksh _filter_json "$filter")"
 
   local push="$(echo "$response" | cut -f1)"
   local pull="$(echo "$response" | cut -f2)"
@@ -518,16 +519,16 @@ _create_ref_pr() {
   local remote_branch="$(_get_remote_ref_branch "$ref_branch")"
 
   if [ -z "$pr_number" ]; then
-    echo "> ok.sh \"create_pull_request\" \"$repo_org/$repo_name\" \"$title\" \"$remote_branch\" \"$prev_remote_branch\" body=\"$body\""
-    local response="$(ok.sh create_pull_request "$repo_org/$repo_name" "$title" "$remote_branch" "$prev_remote_branch" body="$body")"
+    echo "> $oksh \"create_pull_request\" \"$repo_org/$repo_name\" \"$title\" \"$remote_branch\" \"$prev_remote_branch\" body=\"$body\""
+    local response="$($oksh create_pull_request "$repo_org/$repo_name" "$title" "$remote_branch" "$prev_remote_branch" body="$body")"
     pr_number="$(echo "$response" | cut -f1)"
 
     if [ ! -z "$pr_number" ]; then
       _remove_ref_commit_message "$ref" "$KEY_PR="
       _append_ref_commit_message "$ref" "$KEY_PR=$pr_number"
 
-      echo "> ok.sh add_comment \"$repo_org/$repo_name\" \"$pr_number\" \":lock: PR author to submit via \`$cmd submit\`\""
-      ok.sh add_comment "$repo_org/$repo_name" "$pr_number" ":lock: PR author to submit via \`$cmd submit\`"
+      echo "> $oksh add_comment \"$repo_org/$repo_name\" \"$pr_number\" \":lock: PR author to submit via \`$cmd submit\`\""
+      $oksh add_comment "$repo_org/$repo_name" "$pr_number" ":lock: PR author to submit via \`$cmd submit\`"
     else
       echo "Failed to create pull request."
       return 1
@@ -535,8 +536,8 @@ _create_ref_pr() {
   else
     echo "Found existing PR #$pr_number for $ref_branch."
 
-    echo "> ok.sh update_pull_request \"$repo_org/$repo_name\" \"$pr_number\" title=\"$title\" body=\"$body\" base=\"$prev_remote_branch\" state=\"open\""
-    ok.sh update_pull_request "$repo_org/$repo_name" "$pr_number" title="$title" body="$body" base="$prev_remote_branch" state="open" &>/dev/null
+    echo "> $oksh update_pull_request \"$repo_org/$repo_name\" \"$pr_number\" title=\"$title\" body=\"$body\" base=\"$prev_remote_branch\" state=\"open\""
+    $oksh update_pull_request "$repo_org/$repo_name" "$pr_number" title="$title" body="$body" base="$prev_remote_branch" state="open" &>/dev/null
   fi
 }
 
@@ -564,10 +565,10 @@ _ensure_ref_pr_open() {
     echo "Ensuring that the PR is open."
     # The PR's base must be set to an open branch, or else the PR may become closed forever.
     # https://github.com/isaacs/github/issues/361
-    echo "> ok.sh update_pull_request \"$repo_org/$repo_name\" \"$pr_number\" base=\"$prev_remote_branch\""
-    ok.sh update_pull_request "$repo_org/$repo_name" "$pr_number" base="$prev_remote_branch" &>/dev/null
-    echo "> ok.sh update_pull_request \"$repo_org/$repo_name\" \"$pr_number\" state=\"open\""
-    ok.sh update_pull_request "$repo_org/$repo_name" "$pr_number" state="open" &>/dev/null
+    echo "> $oksh update_pull_request \"$repo_org/$repo_name\" \"$pr_number\" base=\"$prev_remote_branch\""
+    $oksh update_pull_request "$repo_org/$repo_name" "$pr_number" base="$prev_remote_branch" &>/dev/null
+    echo "> $oksh update_pull_request \"$repo_org/$repo_name\" \"$pr_number\" state=\"open\""
+    $oksh update_pull_request "$repo_org/$repo_name" "$pr_number" state="open" &>/dev/null
   fi
 }
 
@@ -653,11 +654,11 @@ submit_pr() {
         _ensure_ref_pr_open "origin/$master" "$next_ref"
       fi
 
-      echo "> ok.sh add_comment \"$repo_org/$repo_name\" \"$pr_number\" \":unlock: Submitting via \`$cmd submit\`\""
-      ok.sh add_comment "$repo_org/$repo_name" "$pr_number" ":unlock: Submitting via \`$cmd submit\`"
+      echo "> $oksh add_comment \"$repo_org/$repo_name\" \"$pr_number\" \":unlock: Submitting via \`$cmd submit\`\""
+      $oksh add_comment "$repo_org/$repo_name" "$pr_number" ":unlock: Submitting via \`$cmd submit\`"
 
-      echo "> ok.sh add_comment \"$repo_org/$repo_name\" \"$pr_number\" \":dash:\""
-      ok.sh add_comment "$repo_org/$repo_name" "$pr_number" ":dash:"
+      echo "> $oksh add_comment \"$repo_org/$repo_name\" \"$pr_number\" \":dash:\""
+      $oksh add_comment "$repo_org/$repo_name" "$pr_number" ":dash:"
 
       echo "Check ${underline}$pr_url${normal} for the status on your submission."
       echo "When it is merged into master, sync your local queue with \`$cmd sync\`."
