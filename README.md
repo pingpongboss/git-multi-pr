@@ -72,7 +72,7 @@ Take a look at the [open bugs](https://github.com/pingpongboss/git-multi-pr/issu
 **Start a new feature branch**
 
 ```
-$ git-multi-pr new [feature-name]
+$ git-multi-pr new-feature [feature-name]
 ```
 
 **List changes and make edits**
@@ -102,7 +102,7 @@ $ git-multi-pr merge
 A feature branch is a group of related changes that you'll manage together. *Feature branches do not have any dependencies on other featur branches.* When creating a new change, think about which feature branch it should belong in.
 
 ```
-$ git-multi-pr new [feature-name]
+$ git-multi-pr new-feature [feature-name]
 ```
 
 This creates a new feature branch. You may jump between features using `git checkout [feature-name]`.
