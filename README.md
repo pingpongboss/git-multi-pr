@@ -65,7 +65,7 @@ Then, make sure all dependencies are installed.
 $ git-multi-pr status
 ```
 
-Take a look at the [open bugs](https://github.com/pingpongboss/git-multi-pr/issues?utf8=%E2%9C%93&q=is%3Aissue+is%3Aopen+label%3Abug) for what to avoid. At the moment, there are a few gotchas that have to do with the script being written in bash.
+Take a look at the [open bugs](https://github.com/pingpongboss/git-multi-pr/issues?utf8=%E2%9C%93&q=is%3Aissue+is%3Aopen+label%3Abug) for what to avoid. At the moment, there are a few gotchas that have to do with the script being written in bash. In general, branch names cannot include `/` and commit messages should avoid special characters like `$` `[` `]` due to buggy bash/json string evaluation.
 
 ## Cheat sheet
 
