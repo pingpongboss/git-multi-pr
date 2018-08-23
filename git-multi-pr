@@ -221,7 +221,7 @@ edit_ref() {
 
   if _git_check_rebase_state; then
     echo
-    echo "Remember to call '$cmd continue' after you make your changes, or '$cmd abort' to cancel."
+    echo "Remember to call \`$cmd continue\` after you make your changes, or \`$cmd abort\` to cancel."
   fi
 }
 
@@ -294,7 +294,7 @@ _get_sha_in_local_queue() {
 
   if [[ ! -z "$ref" ]] && ! _is_local_ref "$ref"; then
     echo "ref $1 is not a local commit in your queue." 1>&2
-    echo "Run '$cmd queue' to find a local commit, or use a relative ref like HEAD~." 1>&2
+    echo "Run \`$cmd queue\` to find a local commit, or use a relative ref like HEAD~." 1>&2
     exit 1
   fi
 
@@ -526,8 +526,8 @@ _create_ref_pr() {
       _remove_ref_commit_message "$ref" "$KEY_PR="
       _append_ref_commit_message "$ref" "$KEY_PR=$pr_number"
 
-      echo "> ok.sh add_comment \"$repo_org/$repo_name\" \"$pr_number\" \":lock: PR author to submit via '$cmd submit'\""
-      ok.sh add_comment "$repo_org/$repo_name" "$pr_number" ":lock: PR author to submit via $cmd submit"
+      echo "> ok.sh add_comment \"$repo_org/$repo_name\" \"$pr_number\" \":lock: PR author to submit via \`$cmd submit\`\""
+      ok.sh add_comment "$repo_org/$repo_name" "$pr_number" ":lock: PR author to submit via \`$cmd submit\`"
     else
       echo "Failed to create pull request."
       return 1
@@ -637,7 +637,7 @@ submit_pr() {
   echo
   echo "${bold}Submitting: $(git log -n 1 --oneline --no-decorate "$ref")${normal}"
 
-  echo "If this is not what you want to submit, then use '$cmd edit' to reorder your local history, or '$cmd sync' to sync your local queue."
+  echo "If this is not what you want to submit, then use \`$cmd edit\` to reorder your local history, or \`$cmd sync\` to sync your local queue."
   echo "${bold}Do you want to submit $ref? [y/N]:${normal} "
   read prompt
 
@@ -653,14 +653,14 @@ submit_pr() {
         _ensure_ref_pr_open "origin/$master" "$next_ref"
       fi
 
-      echo "> ok.sh add_comment \"$repo_org/$repo_name\" \"$pr_number\" \":unlock: Submitting via $cmd submit\""
-      ok.sh add_comment "$repo_org/$repo_name" "$pr_number" ":unlock: Submitting via $cmd submit"
+      echo "> ok.sh add_comment \"$repo_org/$repo_name\" \"$pr_number\" \":unlock: Submitting via \`$cmd submit\`\""
+      ok.sh add_comment "$repo_org/$repo_name" "$pr_number" ":unlock: Submitting via \`$cmd submit\`"
 
       echo "> ok.sh add_comment \"$repo_org/$repo_name\" \"$pr_number\" \":dash:\""
       ok.sh add_comment "$repo_org/$repo_name" "$pr_number" ":dash:"
 
       echo "Check ${underline}$pr_url${normal} for the status on your submission."
-      echo "When it is merged into master, sync your local queue with '$cmd sync'."
+      echo "When it is merged into master, sync your local queue with \`$cmd sync\`."
       ;;
     *)
       echo "Submit cancelled. Exiting."
