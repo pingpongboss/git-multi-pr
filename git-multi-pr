@@ -111,7 +111,7 @@ print_queue() {
   local count="${#refs_array[@]}"
 
   echo
-  echo "Local commit queue for $branch:"
+  echo "Local changes for $branch:"
 
   if [ "$count" -eq 0 ]; then
     echo "All of your commits have already landed on origin/$master."
@@ -741,10 +741,10 @@ _git_verify_branch() {
 
 case "$1" in
   # Step 1
-  new)                                  new_queue "${@:2}" ;;
+  new-feature)                          new_queue "${@:2}" ;;
 
   # Step 2
-  queue)                                print_queue "${@:2}" ;;
+  list)                                 print_queue "${@:2}" ;;
   sync)                                 sync_queue "${@:2}" ;;
   cleanup)                              cleanup "${@:2}" ;;
   edit)                                 edit_ref "${@:2}" ;;
@@ -755,7 +755,7 @@ case "$1" in
   export)                               export_prs "${@:2}" ;;
 
   # Step 4
-  submit)                               submit_pr "${@:2}" ;;
+  merge)                                submit_pr "${@:2}" ;;
 
   # Helper
   _ref_commit_message_helper)           _ref_commit_message_helper "${@:2}" ;;
