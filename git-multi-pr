@@ -18,6 +18,11 @@ KEY_GIT_MULTI_BRANCH="GIT_MULTI_BRANCH"
 KEY_PR="PR"
 
 status() {
+  local quick=false
+  if [[ "$1" == "-q" ]]; then
+    quick=true
+  fi
+
   local success=true
 
   [[ "$(git config --global --get rerere.enabled)" == "true" ]] || {
@@ -50,7 +55,7 @@ status() {
     echo
   }
 
-  _ensure_github_permissions || {
+  "$quick" || _ensure_github_permissions || {
     success=false
 
     echo "${bold}Missing GitHub permissions${normal}"
@@ -67,7 +72,9 @@ status() {
 
   if $success; then
     echo "All required configurations and dependencies are installed."
+    return 0
   fi
+  return 1
 }
 
 _ensure_github_permissions() {
@@ -314,6 +321,11 @@ _is_local_ref() {
 }
 
 export_prs() {
+  status &>/dev/null || {
+    echo "You are missing required configurations or dependencies. Please run \`$cmd status\` to fix this."
+    exit 1
+  }
+
   local branch="$(_git_get_branch)"
 
   local refs="$(_git_get_commits)"
@@ -625,6 +637,11 @@ _get_ref_pr_number() {
 }
 
 submit_pr() {
+  status &>/dev/null || {
+    echo "You are missing required configurations or dependencies. Please run \`$cmd status\` to fix this."
+    exit 1
+  }
+
   echo "${bold}First re-exporting your local queue.${normal}"
   echo
   export_prs
@@ -719,6 +736,11 @@ _git_check_rebase_state() {
 
 _git_verify_branch() {
   git rev-parse --verify $@ &>/dev/null
+}
+
+[[ "$1" == "status" ]] || status -q &>/dev/null || {
+  echo "You are missing required configurations or dependencies. Please run \`$cmd status\` to fix this."
+  exit 1
 }
 
 case "$1" in
