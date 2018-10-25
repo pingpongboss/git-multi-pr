@@ -540,8 +540,8 @@ _create_ref_pr() {
       _remove_ref_commit_message "$ref" "$KEY_PR="
       _append_ref_commit_message "$ref" "$KEY_PR=$pr_number"
 
-      echo "> $oksh add_comment \"$repo_org/$repo_name\" \"$pr_number\" \":lock: PR author to submit via \`$cmd submit\`\""
-      $oksh add_comment "$repo_org/$repo_name" "$pr_number" ":lock: PR author to submit via \`$cmd submit\`"
+      echo "> $oksh add_comment \"$repo_org/$repo_name\" \"$pr_number\" \":lock: PR author to merge via \`$cmd merge\`\""
+      $oksh add_comment "$repo_org/$repo_name" "$pr_number" ":lock: PR author to merge via \`$cmd merge\`"
     else
       echo "Failed to create pull request."
       return 1
