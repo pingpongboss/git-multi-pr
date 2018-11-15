@@ -54,9 +54,7 @@ Finally, when your changes look good, `git-multi-pr` will take a snapshot of eac
 First, clone this repository and add the `git-multi-pr` script to your $PATH.
 
 ```
-$ git clone git@github.com:pingpongboss/git-multi-pr.git
-$ cd git-multi-pr/
-$ ln -s git-multi-pr ~/bin # Assuming you've added ~/bin to your $PATH
+$ mkdir -p $HOME/bin ; curl -o $HOME/bin/git-multi-pr https://raw.githubusercontent.com/pingpongboss/git-multi-pr/master/git-multi-pr ; chmod +x $HOME/bin/git-multi-pr
 ```
 
 Then, make sure all dependencies are installed.
