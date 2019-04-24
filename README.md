@@ -111,7 +111,7 @@ Make sure you're working in the right feature branch. Then, simply make your cha
 
 ```
 $ git checkout [feature-name]
-$ vim file.java
+$ emacs file.java
 $ git commit -a
 ```
 
@@ -122,7 +122,7 @@ The commit message will be used to populate the PR title and summary.
 Just amend a commit to update that change. You'll only need vanilla git commands here.
 
 ```
-$ vim file.java
+$ emacs file.java
 $ git commit -a --amend
 ```
 
@@ -133,7 +133,7 @@ If you notice extra metadata like `GIT_MULTI_BRANCH=` and `PR=` in the commit me
 Just create a new commit! You'll only need vanilla git commands here.
 
 ```
-$ vim file.java
+$ emacs file.java
 $ git commit -a
 ```
 
@@ -174,7 +174,7 @@ $ git-multi-pr edit
 Then, while you're in rebase mode, make some changes and amend it to the commit at HEAD.
 
 ```
-$ vim file.java
+$ emacs file.java
 $ git commit -a --amend
 ```
 
