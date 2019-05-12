@@ -34,7 +34,7 @@ export_() {
     # Create/update hidden branch.
     local ref_branch="$(_generate_ref_branch_name "$ref")"
     echo "Will use hidden branch $ref_branch for $ref."
-    _create_ref_branch "$prev_ref_branch" "$ref_branch" "$ref"
+    _create_or_update_ref_branch "$prev_ref_branch" "$ref_branch" "$ref"
 
     # Create/update PR.
     _create_ref_pr "$prev_ref_branch" "$ref_branch" "$ref"
@@ -84,14 +84,45 @@ _generate_ref_branch_name() {
   echo "$ref_branch"
 }
 
-_create_ref_branch() {
+_create_or_update_ref_branch() {
   local prev_ref_branch="$1"
   local ref_branch="$2"
   local ref="$3"
 
   local branch="$(_git_get_branch)"
 
-  git branch -D "$ref_branch" &>/dev/null
+
+  if _git_verify_branch "$ref_branch"; then
+    _update_ref_branch "$prev_ref_branch" "$ref_branch" "$ref"
+  else
+    _create_ref_branch "$prev_ref_branch" "$ref_branch" "$ref"
+  fi
+
+  _push_ref_branch "$prev_ref_branch" "$ref_branch" "$ref" "$branch"
+
+  git checkout "$branch" &>/dev/null
+}
+
+_update_ref_branch() {
+  local prev_ref_branch="$1"
+  local ref_branch="$2"
+  local ref="$3"
+
+  local sha="$(_get_sha_in_local_queue "$ref")"
+
+  echo "Updating hidden branch $ref_branch for $ref."
+  git checkout "$ref_branch" &>/dev/null
+
+  git reset --soft "$sha" &>/dev/null
+
+  local count="$(_git_get_commits | wc -l)"
+  git commit -m "Snapshot $((count+1))" &>/dev/null
+}
+
+_create_ref_branch() {
+  local prev_ref_branch="$1"
+  local ref_branch="$2"
+  local ref="$3"
 
   _remove_ref_commit_message "$ref" "$KEY_GIT_MULTI_BRANCH="
   _append_ref_commit_message "$ref" "$KEY_GIT_MULTI_BRANCH=$ref_branch"
@@ -101,15 +132,24 @@ _create_ref_branch() {
   echo "Creating hidden branch $ref_branch for $ref."
   git checkout "$prev_ref_branch" &>/dev/null
   git checkout -b "$ref_branch" &>/dev/null
-  git cherry-pick "$sha" &>/dev/null
+
+  git reset --soft "$sha" &>/dev/null
+
+  git commit -m "Snapshot 1" &>/dev/null
+}
+
+_push_ref_branch() {
+  local prev_ref_branch="$1"
+  local ref_branch="$2"
+  local ref="$3"
+
+  local sha="$(_get_sha_in_local_queue "$ref")"
 
   _ensure_ref_pr_open "$prev_ref_branch" "$sha"
 
   echo "Pushing hidden branch $ref_branch to remote."
   local remote_branch="$(_get_remote_ref_branch "$ref_branch")"
   git push -f origin "$ref_branch:$remote_branch" &>/dev/null
-
-  git checkout "$branch" &>/dev/null
 }
 
 _append_ref_commit_message() {
@@ -119,7 +159,6 @@ _append_ref_commit_message() {
   echo "Adding $message to commit message of $ref."
   _edit_ref "$ref" &>/dev/null
   # Ensure only one single empty line before $message.
-  echo "msg-filter: $cmd _ref_commit_message_helper append $message"
   git filter-branch -f --msg-filter "$cmd _ref_commit_message_helper append $message" HEAD~..HEAD &>/dev/null
   _continue_rebase &>/dev/null
 }

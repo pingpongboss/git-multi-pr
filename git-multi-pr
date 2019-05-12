@@ -49,7 +49,7 @@ DIR="$( cd -P "$( dirname "$SOURCE" )" >/dev/null 2>&1 && pwd )"
     _get_sha_in_local_queue)              _get_sha_in_local_queue "${@:2}" ;;
     _get_ref_pr_number)                   _get_ref_pr_number "${@:2}" ;;
     _get_ref_branch_name)                 _get_ref_branch_name "${@:2}" ;;
-    _create_ref_branch)                   _create_ref_branch "${@:2}" ;;
+    _create_or_update_ref_branch)         _create_or_update_ref_branch "${@:2}" ;;
     _generate_ref_branch_name)            _generate_ref_branch_name "${@:2}" ;;
     _append_ref_commit_message)           _append_ref_commit_message "${@:2}" ;;
     _remove_ref_commit_message)           _remove_ref_commit_message "${@:2}" ;;
