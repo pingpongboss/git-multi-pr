@@ -123,7 +123,7 @@ _update_ref_branch() {
   else
     local count="$(_get_relative_non_merge_commits_count "$prev_ref_branch")"
 
-    echo "Changes detected. Adding to Snapshot $((count+1))."
+    echo "Changes detected. Adding to ${bold}Snapshot $((count+1))${normal}."
 
     git add . &>/dev/null
     git commit -m "Snapshot $((count+1))" &>/dev/null
