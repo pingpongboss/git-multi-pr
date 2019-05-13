@@ -29,7 +29,8 @@ export_() {
       break
     fi
 
-    echo "${bold}$subject${normal}"
+    local sha="$(_get_sha_in_local_queue "$ref")"
+    echo "${bold}$sha: $subject${normal}"
     echo "${bold}Exporting commit at $ref${normal}"
 
     # Create/update hidden branch.
