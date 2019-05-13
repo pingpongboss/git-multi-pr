@@ -117,16 +117,7 @@ _update_ref_branch() {
 
   git diff HEAD.."$sha" | git apply &>/dev/null
 
-  if _git_check_clean_state; then
-    echo "No changes detected."
-  else
-    local count="$(_get_relative_non_merge_commits_count "$prev_ref_branch")"
-
-    echo "Changes detected. Adding to ${bold}Snapshot $((count+1))${normal}."
-
-    git add . &>/dev/null
-    git commit -m "Snapshot $((count+1))" &>/dev/null
-  fi
+  _commit_to_new_snapshot
 }
 
 _get_relative_non_merge_commits_count() {
@@ -159,9 +150,21 @@ _create_ref_branch() {
   git checkout -b "$ref_branch" &>/dev/null
 
   git diff HEAD.."$sha" | git apply &>/dev/null
-  git add . &>/dev/null
 
-  git commit -m "Snapshot 1" &>/dev/null
+  _commit_to_new_snapshot
+}
+
+_commit_to_new_snapshot() {
+  if _git_check_clean_state; then
+    echo "No changes detected."
+  else
+    local count="$(_get_relative_non_merge_commits_count "$prev_ref_branch")"
+
+    echo "Changes detected. Adding to ${bold}Snapshot $((count+1))${normal}."
+
+    git add . &>/dev/null
+    git commit -m "Snapshot $((count+1))" &>/dev/null
+  fi
 }
 
 _push_ref_branch() {
