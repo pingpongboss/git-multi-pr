@@ -116,7 +116,7 @@ _update_ref_branch() {
   git diff HEAD.."$sha" | git apply &>/dev/null
   git add . &>/dev/null
 
-  local count="$(_git_get_commits | wc -l)"
+  local count="$(_git_get_relative_commits "$prev_ref_branch" | wc -l)"
   git commit -m "Snapshot $((count+1))" &>/dev/null
 }
 

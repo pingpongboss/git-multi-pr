@@ -45,6 +45,10 @@ _git_get_commits() {
   git rev-list --abbrev-commit $@ "origin/$master"..
 }
 
+_git_get_relative_commits() {
+  git rev-list --abbrev-commit "$@"..
+}
+
 _git_get_commit_sha() {
   if [ -z "$1" ]; then
     $cmd usage
