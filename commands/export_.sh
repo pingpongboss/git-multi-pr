@@ -116,10 +116,17 @@ _update_ref_branch() {
   git merge "$prev_ref_branch" --no-edit  &>/dev/null
 
   git diff HEAD.."$sha" | git apply &>/dev/null
-  git add . &>/dev/null
 
-  local count="$(_get_relative_non_merge_commits_count "$prev_ref_branch")"
-  git commit -m "Snapshot $((count+1))" &>/dev/null
+  if _git_check_clean_state; then
+    echo "No changes detected."
+  else
+    local count="$(_get_relative_non_merge_commits_count "$prev_ref_branch")"
+
+    echo "Changes detected. Adding to Snapshot $((count+1))."
+
+    git add . &>/dev/null
+    git commit -m "Snapshot $((count+1))" &>/dev/null
+  fi
 }
 
 _get_relative_non_merge_commits_count() {
