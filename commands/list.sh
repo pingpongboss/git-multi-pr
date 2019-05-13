@@ -1,5 +1,5 @@
 #!/bin/bash
-source "shared.sh"
+source "$GMP_DIR/shared.sh"
 
 list() {
   local branch="$(_git_get_branch)"

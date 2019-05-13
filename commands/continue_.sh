@@ -1,5 +1,5 @@
 #!/bin/bash
-source "shared.sh"
+source "$GMP_DIR/shared.sh"
 
 continue_() {
   _continue_rebase "$@"
