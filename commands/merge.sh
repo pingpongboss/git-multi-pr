@@ -11,8 +11,6 @@ merge() {
   local IFS=$'\n' refs_array=($refs)
   local ref="${refs_array[0]}"
 
-  # TODO: Check that PR base is master
-
   local pr_number="$(_get_ref_pr_number "$ref")"
   local sha="$(_get_sha_in_local_queue "$ref")"
   local title="$(_git_get_commit_subject "$ref")"
