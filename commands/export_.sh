@@ -149,8 +149,8 @@ _push_ref_branch() {
 
   _ensure_ref_pr_open "$prev_ref_branch" "$sha"
 
-  echo "Pushing hidden branch $ref_branch to origin/$remote_branch."
   local remote_branch="$(_get_remote_ref_branch "$ref_branch")"
+  echo "Pushing hidden branch $ref_branch to origin/$remote_branch."
   git push origin "$ref_branch:$remote_branch" &>/dev/null
 }
 
