@@ -251,12 +251,11 @@ _git_is_merge_commit () {
 }
 
 # open, pending (submitting), merged (submitted), closed (dropped)
-_get_pr_status() {
+_is_pr_merged() {
   local number="$1"
 
   local repo_org="$(_get_repo_org)"
   local repo_name="$(_get_repo_name)"
 
-  local response="$(ok.sh _get "/repos/$repo_org/$repo_name/pulls/$number/merge")"
-  echo "$response"
+  $oksh _get "/repos/$repo_org/$repo_name/pulls/$number/merge" &>/dev/null
 }

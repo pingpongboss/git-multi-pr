@@ -59,6 +59,7 @@ case "$1" in
   _ensure_github_permissions)             _ensure_github_permissions "${@:2}" ;;
   _edit_ref)                              _edit_ref "${@:2}" ;;
   _get_relative_non_merge_commits_count)  _get_relative_non_merge_commits_count "${@:2}" ;;
+  _get_pr_status)                         _get_pr_status "${@:2}" ;;
 
 
   # Help
