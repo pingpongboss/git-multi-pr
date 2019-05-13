@@ -126,9 +126,9 @@ _get_relative_non_merge_commits_count() {
   local count=0
 
   local commits="$(_git_get_relative_commits "$prev_ref_branch")"
-  for commit in "$commits"; do
+  for commit in $commits; do
     if ! _git_is_merge_commit "$commit"; then
-      count=$((count+1))
+      ((count++))
     fi
   done
 

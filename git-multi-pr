@@ -25,44 +25,45 @@ DIR="$( cd -P "$( dirname "$SOURCE" )" >/dev/null 2>&1 && pwd )"
 
   case "$1" in
     # Step 1
-    new-feature)                          new_feature "${@:2}" ;;
+    new-feature)                            new_feature "${@:2}" ;;
 
     # Step 2
-    list)                                 list "${@:2}" ;;
-    sync)                                 sync "${@:2}" ;;
-    cleanup)                              cleanup "${@:2}" ;;
-    edit)                                 edit "${@:2}" ;;
-    continue)                             continue_ "${@:2}" ;;
-    abort)                                abort "${@:2}" ;;
+    list)                                   list "${@:2}" ;;
+    sync)                                   sync "${@:2}" ;;
+    cleanup)                                cleanup "${@:2}" ;;
+    edit)                                   edit "${@:2}" ;;
+    continue)                               continue_ "${@:2}" ;;
+    abort)                                  abort "${@:2}" ;;
 
     # Step 3
-    export)                               export_ "${@:2}" ;;
+    export)                                 export_ "${@:2}" ;;
 
     # Step 4
-    merge)                                merge "${@:2}" ;;
+    merge)                                  merge "${@:2}" ;;
 
     # Helper
-    _ref_commit_message_helper)           _ref_commit_message_helper "${@:2}" ;;
+    _ref_commit_message_helper)             _ref_commit_message_helper "${@:2}" ;;
 
     # Private
-    _is_local_ref)                        _is_local_ref "${@:2}" ;;
-    _get_sha_in_local_queue)              _get_sha_in_local_queue "${@:2}" ;;
-    _get_ref_pr_number)                   _get_ref_pr_number "${@:2}" ;;
-    _get_ref_branch_name)                 _get_ref_branch_name "${@:2}" ;;
-    _create_or_update_ref_branch)         _create_or_update_ref_branch "${@:2}" ;;
-    _generate_ref_branch_name)            _generate_ref_branch_name "${@:2}" ;;
-    _append_ref_commit_message)           _append_ref_commit_message "${@:2}" ;;
-    _remove_ref_commit_message)           _remove_ref_commit_message "${@:2}" ;;
-    _create_ref_pr)                       _create_ref_pr "${@:2}" ;;
-    _get_remote_ref_branch)               _get_remote_ref_branch "${@:2}" ;;
-    _get_repo_org)                        _get_repo_org "${@:2}" ;;
-    _get_repo_name)                       _get_repo_name "${@:2}" ;;
-    _ensure_github_permissions)           _ensure_github_permissions "${@:2}" ;;
-    _edit_ref)                            _edit_ref "${@:2}" ;;
+    _is_local_ref)                          _is_local_ref "${@:2}" ;;
+    _get_sha_in_local_queue)                _get_sha_in_local_queue "${@:2}" ;;
+    _get_ref_pr_number)                     _get_ref_pr_number "${@:2}" ;;
+    _get_ref_branch_name)                   _get_ref_branch_name "${@:2}" ;;
+    _create_or_update_ref_branch)           _create_or_update_ref_branch "${@:2}" ;;
+    _generate_ref_branch_name)              _generate_ref_branch_name "${@:2}" ;;
+    _append_ref_commit_message)             _append_ref_commit_message "${@:2}" ;;
+    _remove_ref_commit_message)             _remove_ref_commit_message "${@:2}" ;;
+    _create_ref_pr)                         _create_ref_pr "${@:2}" ;;
+    _get_remote_ref_branch)                 _get_remote_ref_branch "${@:2}" ;;
+    _get_repo_org)                          _get_repo_org "${@:2}" ;;
+    _get_repo_name)                         _get_repo_name "${@:2}" ;;
+    _ensure_github_permissions)             _ensure_github_permissions "${@:2}" ;;
+    _edit_ref)                              _edit_ref "${@:2}" ;;
+    _get_relative_non_merge_commits_count)  _get_relative_non_merge_commits_count "${@:2}" ;;
 
 
     # Help
-    status)                               status "${@:2}" ;;
-    *)                                    usage ;;
+    status)                                 status "${@:2}" ;;
+    *)                                      usage ;;
   esac
 )
