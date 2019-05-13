@@ -294,4 +294,9 @@ _create_or_update_ref_pr() {
     echo "> $oksh update_pull_request \"$repo_org/$repo_name\" \"$pr_number\" title=\"$title\" body=\"$body\" base=\"$prev_remote_branch\" state=\"open\""
     $oksh update_pull_request "$repo_org/$repo_name" "$pr_number" title="$title" body="$body" base="$prev_remote_branch" state="open" &>/dev/null
   fi
+
+  local url="$(_get_ref_pr_url "$ref")"
+  if [ ! -z "$url" ]; then
+    echo "$url"
+  fi
 }
