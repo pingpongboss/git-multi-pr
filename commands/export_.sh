@@ -110,10 +110,11 @@ _update_ref_branch() {
 
   local sha="$(_get_sha_in_local_queue "$ref")"
 
-  echo "Updating hidden branch $ref_branch for $ref."
+  echo "Updating hidden branch $ref_branch for $ref ($sha)."
   git checkout "$ref_branch" &>/dev/null
 
-  git reset --soft "$sha" &>/dev/null
+  git diff HEAD.."$sha" | git apply &>/dev/null
+  git add .
 
   local count="$(_git_get_commits | wc -l)"
   git commit -m "Snapshot $((count+1))" &>/dev/null
@@ -129,11 +130,12 @@ _create_ref_branch() {
 
   local sha="$(_get_sha_in_local_queue "$ref")"
 
-  echo "Creating hidden branch $ref_branch for $ref."
+  echo "Creating hidden branch $ref_branch for $ref ($sha)."
   git checkout "$prev_ref_branch" &>/dev/null
   git checkout -b "$ref_branch" &>/dev/null
 
-  git reset --soft "$sha" &>/dev/null
+  git diff HEAD.."$sha" | git apply &>/dev/null
+  git add .
 
   git commit -m "Snapshot 1" &>/dev/null
 }
@@ -149,7 +151,7 @@ _push_ref_branch() {
 
   echo "Pushing hidden branch $ref_branch to remote."
   local remote_branch="$(_get_remote_ref_branch "$ref_branch")"
-  git push -f origin "$ref_branch:$remote_branch" &>/dev/null
+  git push origin "$ref_branch:$remote_branch" &>/dev/null
 }
 
 _append_ref_commit_message() {
