@@ -29,6 +29,13 @@ export_() {
       break
     fi
 
+    # Break if commit PR is already merged.
+    local pr_number="$(_get_ref_pr_number "$ref")"
+    if [ ! -z "$pr_number" ]; then
+      local pr_status="$(_get_pr_status "$pr_number")"
+      echo "pr_status: $pr_status"
+    fi
+
     local sha="$(_get_sha_in_local_queue "$ref")"
     echo "${bold}Exporting $ref ($sha): $subject${normal}"
 

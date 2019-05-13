@@ -243,9 +243,20 @@ _get_ref_branch_name() {
 }
 
 _git_is_merge_commit () {
-    local sha="$1"
+  local sha="$1"
 
-    local merge_sha=$(git rev-list -1 --merges ${sha}~1..${sha})
-    [ -z "$merge_sha" ] && return 1
-    return 0
+  local merge_sha=$(git rev-list -1 --merges ${sha}~1..${sha})
+  [ -z "$merge_sha" ] && return 1
+  return 0
+}
+
+# open, pending (submitting), merged (submitted), closed (dropped)
+_get_pr_status() {
+  local number="$1"
+
+  local repo_org="$(_get_repo_org)"
+  local repo_name="$(_get_repo_name)"
+
+  local response="$(ok.sh _get "/repos/$repo_org/$repo_name/pulls/$number/merge")"
+  echo "$response"
 }
