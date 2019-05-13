@@ -43,6 +43,7 @@ export_() {
     prev_ref_branch="$ref_branch"
     git checkout "$branch" &>/dev/null
     echo
+    echo
   done
 
   git checkout "$branch" &>/dev/null
