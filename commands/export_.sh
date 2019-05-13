@@ -19,6 +19,7 @@ export_() {
   local prev_ref_branch="origin/$master"
   while [ $i -ge 0 ]; do
     local ref="HEAD~$i"
+    local sha="$(_get_sha_in_local_queue "$ref")"
 
     # Break on first WIP commit.
     local subject="$(_git_get_commit_subject "$ref")"
@@ -29,7 +30,15 @@ export_() {
       break
     fi
 
-    local sha="$(_get_sha_in_local_queue "$ref")"
+    # Break if commit PR is already merged.
+    local pr_number="$(_get_ref_pr_number "$ref")"
+    if [ ! -z "$pr_number" ] && _is_pr_merged "$pr_number"; then
+      echo "${bold}Detected merged PR #$pr_number for $ref ($sha): $subject${normal}"
+      echo "Please run \`$cmd sync\` first to remove the PR from your local queue."
+      echo "Stopping."
+      break
+    fi
+
     echo "${bold}Exporting $ref ($sha): $subject${normal}"
 
     # Create/update hidden branch.
