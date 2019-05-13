@@ -114,7 +114,7 @@ _update_ref_branch() {
   git checkout "$ref_branch" &>/dev/null
 
   git diff HEAD.."$sha" | git apply &>/dev/null
-  git add .
+  git add . &>/dev/null
 
   local count="$(_git_get_commits | wc -l)"
   git commit -m "Snapshot $((count+1))" &>/dev/null
@@ -135,7 +135,7 @@ _create_ref_branch() {
   git checkout -b "$ref_branch" &>/dev/null
 
   git diff HEAD.."$sha" | git apply &>/dev/null
-  git add .
+  git add . &>/dev/null
 
   git commit -m "Snapshot 1" &>/dev/null
 }
