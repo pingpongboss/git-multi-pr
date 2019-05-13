@@ -29,7 +29,8 @@ export_() {
       break
     fi
 
-    echo "${bold}Exporting commit at $ref: $subject${normal}"
+    echo "${bold}$subject${normal}"
+    echo "${bold}Exporting commit at $ref{normal}"
 
     # Create/update hidden branch.
     local ref_branch="$(_generate_ref_branch_name "$ref")"
