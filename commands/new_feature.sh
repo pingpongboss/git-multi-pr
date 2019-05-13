@@ -7,7 +7,13 @@ new_feature() {
     exit 1
   fi
 
-  echo "Creating new branch $1"
-  git checkout "origin/$master" &>/dev/null
-  git checkout -b "$1"
+  local branch="$1"
+
+  if _git_verify_branch "$branch"; then
+    git checkout "$branch"
+  else
+    echo "Creating new branch $branch"
+    git checkout "origin/$master" &>/dev/null
+    git checkout -b "$branch"
+  fi
 }
