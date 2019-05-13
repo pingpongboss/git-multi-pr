@@ -30,8 +30,7 @@ export_() {
     fi
 
     local sha="$(_get_sha_in_local_queue "$ref")"
-    echo "${bold}$sha: $subject${normal}"
-    echo "${bold}Exporting commit at $ref${normal}"
+    echo "${bold}Exporting $ref ($sha): $subject${normal}"
 
     # Create/update hidden branch.
     local ref_branch="$(_generate_ref_branch_name "$ref")"
