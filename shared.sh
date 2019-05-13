@@ -113,7 +113,7 @@ _get_sha_in_local_queue() {
 
   ref="$(_git_get_commit_sha "$ref")"
 
-  if [[ ! -z "$ref" ]] && ! _is_local_ref "$ref"; then
+  if [[ ! -z "$ref" ]] && ! _is_local_commit "$ref"; then
     echo "ref $1 is not a local commit in your queue." 1>&2
     echo "Run \`$cmd queue\` to find a local commit, or use a relative ref like HEAD~." 1>&2
     exit 1
@@ -150,10 +150,10 @@ _abort_rebase() {
   git rebase --abort
 }
 
-_is_local_ref() {
-  local refs="$(_git_get_commits)"
-  for ref in $refs; do
-    if [ "$ref" == "$1" ]; then
+_is_local_commit() {
+  local commits="$(_git_get_commits)"
+  for commit in $commits; do
+    if [ "$commit" == "$1" ]; then
       return 0
     fi
   done

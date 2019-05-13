@@ -7,31 +7,34 @@ merge() {
     exit 1
   }
 
-  local refs="$(_git_get_commits --reverse)"
-  local IFS=$'\n' refs_array=($refs)
-  local ref="${refs_array[0]}"
+  local commits="$(_git_get_commits --reverse)"
+  local IFS=$'\n' commits_array=($commits)
+  local commit="${commits_array[0]}"
 
-  # TODO: Check that PR base is master
-
-  local pr_number="$(_get_ref_pr_number "$ref")"
-  local sha="$(_get_sha_in_local_queue "$ref")"
-  local title="$(_git_get_commit_subject "$ref")"
+  local pr_number="$(_get_ref_pr_number "$commit")"
+  local sha="$(_get_sha_in_local_queue "$commit")"
+  local title="$(_git_get_commit_subject "$commit")"
 
   echo
   echo "${bold}Merging onto origin/$master oldest PR #$pr_number ($sha): $title${normal}"
 
+  if ! _is_all_changes_exported "$commit"; then
+    echo "Unexported changes detected. You must first run \`$cmd export\` before you merge this PR."
+    return 1
+  fi
+
   echo "If this is not the PR what you want to merge, then use \`$cmd edit\` to reorder your local history, or \`$cmd sync\` to sync your local queue."
-  echo "${bold}Do you want to merge $ref? [y/N]:${normal} "
+  echo "${bold}Do you want to merge $commit? [y/N]:${normal} "
   read prompt
 
   case "$prompt" in
     y | Y)
       local repo_org="$(_get_repo_org)"
       local repo_name="$(_get_repo_name)"
-      local pr_url="$(_get_ref_pr_url "$ref")"
+      local pr_url="$(_get_ref_pr_url "$commit")"
 
-      if [[ "${#refs_array[@]}" -ge 2 ]]; then
-        local next_ref="${refs_array[1]}"
+      if [[ "${#commits_array[@]}" -ge 2 ]]; then
+        local next_ref="${commits_array[1]}"
         _ensure_ref_pr_open "origin/$master" "$next_ref"
       fi
 
@@ -50,4 +53,11 @@ merge() {
       return 1
       ;;
   esac
+}
+
+_is_all_changes_exported() {
+  local commit="$1"
+  local ref_branch="$(_get_ref_branch_name "$commit")"
+
+  git diff --exit-code "$ref_branch".."$commit" &>/dev/null
 }
