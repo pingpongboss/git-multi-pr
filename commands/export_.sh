@@ -116,8 +116,23 @@ _update_ref_branch() {
   git diff HEAD.."$sha" | git apply &>/dev/null
   git add . &>/dev/null
 
-  local count="$(_git_get_relative_commits "$prev_ref_branch" | wc -l)"
+  local count="$(_get_relative_non_merge_commits_count "$prev_ref_branch")"
   git commit -m "Snapshot $((count+1))" &>/dev/null
+}
+
+_get_relative_non_merge_commits_count() {
+  local prev_ref_branch="$1"
+
+  local count=0
+
+  local commits="$(_git_get_relative_commits "$prev_ref_branch")"
+  for commit in $commits; do
+    if ! _git_is_merge_commit "$commit"; then
+      ((count++))
+    fi
+  done
+
+  echo "$count"
 }
 
 _create_ref_branch() {
