@@ -8,7 +8,7 @@ cleanup() {
   local obsolete_branches=()
 
   # Ensure clean branch.
-  _git_check_clean_state || { echo "$current_branch has uncommitted changes. Exiting."; return 1; }
+  _git_check_clean_state || { echo "Your branch has uncommitted changes or is in rebase. Cancelling."; return 1; }
 
   echo "Searching for obsolete branches..."
 
