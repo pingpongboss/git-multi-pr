@@ -9,11 +9,11 @@ export_() {
 
   local branch="$(_git_get_branch)"
 
-  local refs="$(_git_get_commits)"
-  local IFS=$'\n' refs_array=($refs)
+  local commits="$(_git_get_commits)"
+  local IFS=$'\n' commits_array=($commits)
 
   # For each commit in the queue (oldest first), create a hidden branch and PR.
-  local count="${#refs_array[@]}"
+  local count="${#commits_array[@]}"
   local i="$(($count-1))"
 
   local prev_ref_branch="origin/$master"
