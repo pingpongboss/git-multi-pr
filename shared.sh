@@ -241,3 +241,11 @@ _get_ref_branch_name() {
     fi
   done
 }
+
+_git_is_merge_commit () {
+    local sha="$1"
+
+    local merge_sha=$(git rev-list -1 --merges ${sha}~1..${sha})
+    [ -z "$merge_sha" ] && return 1
+    return 0
+}
