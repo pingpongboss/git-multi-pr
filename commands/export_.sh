@@ -2,13 +2,9 @@
 source "$GMP_DIR/shared.sh"
 
 export_() {
-  status &>/dev/null || {
-    echo "You are missing required configurations or dependencies. Please run \`$cmd status\` to fix this."
-    exit 1
-  }
+  _git_check_clean_state || { echo "Your branch has uncommitted changes or is in rebase. Cancelling."; return 1; }
 
   local branch="$(_git_get_branch)"
-
   local commits="$(_git_get_commits)"
   local IFS=$'\n' commits_array=($commits)
 

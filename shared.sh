@@ -77,7 +77,7 @@ _git_get_commit_body() {
 }
 
 _git_check_clean_state() {
-  git diff-index --quiet $@ HEAD --
+  git diff-index --quiet $@ HEAD -- && ! _git_check_rebase_state
 }
 
 _git_check_rebase_state() {
