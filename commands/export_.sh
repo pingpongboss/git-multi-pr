@@ -300,6 +300,6 @@ _create_or_update_ref_pr() {
 
   local url="$(_get_ref_pr_url "$ref")"
   if [ ! -z "$url" ]; then
-    echo "$url"
+    echo "${underline}$url${normal}"
   fi
 }
