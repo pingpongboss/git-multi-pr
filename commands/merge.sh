@@ -13,8 +13,12 @@ merge() {
 
   # TODO: Check that PR base is master
 
+  local pr_number="$(_get_ref_pr_number "$ref")"
+  local sha="$(_get_sha_in_local_queue "$ref")"
+  local title="$(_git_get_commit_subject "$ref")"
+
   echo
-  echo "${bold}Merging oldest PR onto origin/$master: $(git log -n 1 --oneline --no-decorate "$ref")${normal}"
+  echo "${bold}Merging onto origin/$master oldest PR #$pr_number ($sha): $title${normal}"
 
   echo "If this is not the PR what you want to merge, then use \`$cmd edit\` to reorder your local history, or \`$cmd sync\` to sync your local queue."
   echo "${bold}Do you want to merge $ref? [y/N]:${normal} "
@@ -24,7 +28,6 @@ merge() {
     y | Y)
       local repo_org="$(_get_repo_org)"
       local repo_name="$(_get_repo_name)"
-      local pr_number="$(_get_ref_pr_number "$ref")"
       local pr_url="$(_get_ref_pr_url "$ref")"
 
       if [[ "${#refs_array[@]}" -ge 2 ]]; then
