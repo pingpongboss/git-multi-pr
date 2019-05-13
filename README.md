@@ -49,12 +49,15 @@ To modify a previous change, you'll use the power of interactive rebase to edit 
 
 Finally, when your changes look good, `git-multi-pr` will take a snapshot of each local commit and create a PR for each one. Any modifications since the last snapshot will be reflected in the PRs.
 
-## Getting started
+## Installation and getting started
 
-First, install the script somewhere in your $PATH.
+Assuming that `$HOME/bin` is in your `$PATH`, clone the repository and create a link to the script in `$HOME/bin`.
 
 ```
-$ mkdir -p $HOME/bin ; curl -o $HOME/bin/git-multi-pr https://raw.githubusercontent.com/pingpongboss/git-multi-pr/master/git-multi-pr ; chmod +x $HOME/bin/git-multi-pr
+$ mkdir -p $HOME/.git-multi-pr $HOME/bin; \
+git clone git@github.com:pingpongboss/git-multi-pr.git $HOME/.git-multi-pr 2> /dev/null || git -C $HOME/.git-multi-pr pull; \
+ln -s -f $HOME/.git-multi-pr/git-multi-pr $HOME/bin/git-multi-pr; \
+chmod +x $HOME/bin/git-multi-pr
 ```
 
 Then, make sure all dependencies are installed.
