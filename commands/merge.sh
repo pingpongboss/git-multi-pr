@@ -24,7 +24,7 @@ merge() {
   fi
 
   echo "If this is not the PR what you want to merge, then use \`$cmd edit\` to reorder your local history, or \`$cmd sync\` to sync your local queue."
-  echo "${bold}Do you want to merge $commit? [y/N]:${normal} "
+  echo "${bold}Do you want to merge PR #$pr_number ($sha)? [y/N]:${normal} "
   read prompt
 
   case "$prompt" in
