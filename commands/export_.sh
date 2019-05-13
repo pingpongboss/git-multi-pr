@@ -37,7 +37,7 @@ export_() {
     _create_or_update_ref_branch "$prev_ref_branch" "$ref_branch" "$ref"
 
     # Create/update PR.
-    _create_ref_pr "$prev_ref_branch" "$ref_branch" "$ref"
+    _create_or_update_ref_pr "$prev_ref_branch" "$ref_branch" "$ref"
 
     i="$(($i-1))"
     prev_ref_branch="$ref_branch"
@@ -217,9 +217,9 @@ _ref_commit_message_helper() {
   fi
 }
 
-_create_ref_pr() {
+_create_or_update_ref_pr() {
   echo
-  echo "Creating PR for $ref_branch."
+  echo "Creating or updating PR for $ref_branch."
 
   local prev_ref_branch="$1"
   local ref_branch="$2"
@@ -245,6 +245,8 @@ _create_ref_pr() {
   local remote_branch="$(_get_remote_ref_branch "$ref_branch")"
 
   if [ -z "$pr_number" ]; then
+    echo "Did not find existing PR # for $ref_branch."
+
     echo "> $oksh \"create_pull_request\" \"$repo_org/$repo_name\" \"$title\" \"$remote_branch\" \"$prev_remote_branch\" body=\"$body\""
     local response="$($oksh create_pull_request "$repo_org/$repo_name" "$title" "$remote_branch" "$prev_remote_branch" body="$body")"
     pr_number="$(echo "$response" | cut -f1)"
@@ -256,7 +258,9 @@ _create_ref_pr() {
       echo "> $oksh add_comment \"$repo_org/$repo_name\" \"$pr_number\" \":lock: PR author to merge via \`$cmd merge\`\""
       $oksh add_comment "$repo_org/$repo_name" "$pr_number" ":lock: PR author to merge via \`$cmd merge\`"
     else
-      echo "Failed to create pull request."
+      echo "\nFailed to create pull request."
+      echo "Manually check if a new PR was created. If it was, copy the PR number, and manually amend the commit message with:"
+      echo "$KEY_PR=[PR_NUMBER]"
       return 1
     fi
   else
