@@ -83,7 +83,7 @@ _is_all_changes_exported() {
 
   git checkout "$branch" &>/dev/null
 
-  return $retval
+  return "$retval"
 }
 
 _print_unexported_changes() {
