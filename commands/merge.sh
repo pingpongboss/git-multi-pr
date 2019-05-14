@@ -19,8 +19,8 @@ merge() {
   echo "${bold}Do you want to merge PR #$pr_number ($sha)? [yes/NO]:${normal} "
   read prompt
 
-  case "${prompt^^}" in
-    Y | YES)
+  case "$(echo "$prompt" | tr a-z A-Z)" in
+    y | Y | yes | YES)
       if ! _is_all_changes_exported "$commit"; then
         echo "Unexported changes detected. You should first run \`$cmd export\` before you merge this PR."
 
@@ -28,12 +28,12 @@ merge() {
           echo "${bold}Do you want to merge this PR as-is? [yes/diff/NO]:${normal} "
           read prompt
 
-          case "${prompt^^}" in
+          case "$(echo "$prompt" | tr a-z A-Z)" in
             Y | YES)
               break
               ;;
             D | DIFF)
-              _print_unexported_changes
+              _print_unexported_changes "$commit"
               ;;
             *)
               echo "Merge cancelled. Exiting."
