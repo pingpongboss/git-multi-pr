@@ -15,25 +15,42 @@ merge() {
   echo
   echo "${bold}Merging onto origin/$master oldest PR #$pr_number ($sha): $title${normal}"
 
-  if ! _is_all_changes_exported "$commit"; then
-    echo "Unexported changes detected. You must first run \`$cmd export\` before you merge this PR."
-    return 1
-  fi
-
   echo "If this is not the PR what you want to merge, then use \`$cmd edit\` to reorder your local history, or \`$cmd sync\` to sync your local queue."
-  echo "${bold}Do you want to merge PR #$pr_number ($sha)? [y/N]:${normal} "
+  echo "${bold}Do you want to merge PR #$pr_number ($sha)? [yes/NO]:${normal} "
   read prompt
 
-  case "$prompt" in
-    y | Y)
-      local repo_org="$(_get_repo_org)"
-      local repo_name="$(_get_repo_name)"
-      local pr_url="$(_get_ref_pr_url "$commit")"
+  case "${prompt^^}" in
+    Y | YES)
+      if ! _is_all_changes_exported "$commit"; then
+        echo "Unexported changes detected. You should first run \`$cmd export\` before you merge this PR."
+
+        while true; do
+          echo "${bold}Do you want to merge this PR as-is? [yes/diff/NO]:${normal} "
+          read prompt
+
+          case "${prompt^^}" in
+            Y | YES)
+              break
+              ;;
+            D | DIFF)
+              _print_unexported_changes
+              ;;
+            *)
+              echo "Merge cancelled. Exiting."
+              exit 1
+              ;;
+          esac
+        done
+      fi
 
       if [[ "${#commits_array[@]}" -ge 2 ]]; then
         local next_ref="${commits_array[1]}"
         _ensure_ref_pr_open "origin/$master" "$next_ref"
       fi
+
+      local repo_org="$(_get_repo_org)"
+      local repo_name="$(_get_repo_name)"
+      local pr_url="$(_get_ref_pr_url "$commit")"
 
       echo "> $oksh add_comment \"$repo_org/$repo_name\" \"$pr_number\" \":unlock: Merging via \`$cmd merge\`\""
       $oksh add_comment "$repo_org/$repo_name" "$pr_number" ":unlock: Merging via \`$cmd merge\`"
@@ -47,7 +64,7 @@ merge() {
       ;;
     *)
       echo "Merge cancelled. Exiting."
-      return 1
+      exit 1
       ;;
   esac
 }
@@ -57,4 +74,11 @@ _is_all_changes_exported() {
   local ref_branch="$(_get_ref_branch_name "$commit")"
 
   git diff --exit-code "$ref_branch".."$commit" &>/dev/null
+}
+
+_print_unexported_changes() {
+  local commit="$1"
+  local ref_branch="$(_get_ref_branch_name "$commit")"
+
+  git diff "$ref_branch".."$commit"
 }
