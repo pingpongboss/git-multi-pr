@@ -123,6 +123,7 @@ First, checkout the feature branch. Then, simply make your changes and create a 
 
 ```
 $ git-multi-pr new-feature [feature-name]
+# You can also use git checkout [feature-name] if the branch already exists
 $ vim file.java
 $ git commit -a
 ```
