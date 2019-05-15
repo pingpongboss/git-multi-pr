@@ -273,8 +273,6 @@ $ git-multi-pr export
 
 ## Advanced usage
 
-TODO
-
 ### Reordering your changes
 
 You can reorder your local commits, and that order will be respected in your next export. This is especially useful if you want to merge your PRs in a different order. 
