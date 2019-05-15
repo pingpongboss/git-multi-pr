@@ -277,7 +277,15 @@ TODO
 
 ### Reordering your changes
 
-If you want to merge your PRs in a different order, you can follow the [Edit a previous change](#edit-a-previous-change) instructions to *rearrange* the order of your local commits, so that you may merge the PRs in the order that you like. Don't forget to export a new snapshot after rearranging your local changes.
+You can reorder your local commits, and that order will be respected in your next export. This is especially useful if you want to merge your PRs in a different order. 
+
+First *rearrange* the order of your local commits. Then, export a new snapshot!
+
+```
+$ git-multi-pr edit
+# You can also use your tool of choice to reorganize your local commit history
+$ git-multi-pr export
+```
 
 > Reordering commits may require you to do some complicated conflict resolution. The recommendation for new users is to encourage your reviewers to take a look at your PRs in the order that you exported them.
 
