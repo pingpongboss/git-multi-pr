@@ -71,9 +71,19 @@ merge() {
 
 _is_all_changes_exported() {
   local commit="$1"
+
+  local branch="$(_git_get_branch)"
   local ref_branch="$(_get_ref_branch_name "$commit")"
 
+  git checkout "$ref_branch" &>/dev/null
+
+  git merge "origin/$master" --no-edit  &>/dev/null
   git diff --exit-code "$ref_branch".."$commit" &>/dev/null
+  local retval="$?"
+
+  git checkout "$branch" &>/dev/null
+
+  return "$retval"
 }
 
 _print_unexported_changes() {

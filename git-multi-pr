@@ -62,6 +62,7 @@ case "$1" in
   _get_pr_status)                         _get_pr_status "${@:2}" ;;
   _git_check_clean_state)                 _git_check_clean_state "${@:2}" ;;
   _git_check_rebase_state)                _git_check_rebase_state "${@:2}" ;;
+  _is_all_changes_exported)               _is_all_changes_exported "${@:2}" ;;
 
 
   # Help
