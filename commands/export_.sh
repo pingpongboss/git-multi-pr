@@ -122,7 +122,7 @@ _update_ref_branch() {
 
   git merge "$prev_ref_branch" --no-edit  &>/dev/null
 
-  git diff HEAD.."$sha" | git apply &>/dev/null
+  git diff HEAD.."$sha" | git apply --index &>/dev/null
 
   _commit_to_new_snapshot
 }
@@ -156,7 +156,7 @@ _create_ref_branch() {
   git checkout "$prev_ref_branch" &>/dev/null
   git checkout -b "$ref_branch" &>/dev/null
 
-  git diff HEAD.."$sha" | git apply &>/dev/null
+  git diff HEAD.."$sha" | git apply --index &>/dev/null
 
   _commit_to_new_snapshot
 }
