@@ -98,7 +98,7 @@ _create_or_update_ref_branch() {
 
   local branch="$(_git_get_branch)"
 
-
+  git branch -D "$ref_branch" &>/dev/null
   if _git_verify_branch "$ref_branch"; then
     _update_ref_branch "$prev_ref_branch" "$ref_branch" "$ref"
   else
@@ -185,7 +185,7 @@ _push_ref_branch() {
 
   local remote_branch="$(_get_remote_ref_branch "$ref_branch")"
   echo "Pushing hidden branch $ref_branch to origin/$remote_branch."
-  git push origin "$ref_branch:$remote_branch" &>/dev/null
+  git push -f origin "$ref_branch:$remote_branch" &>/dev/null
 }
 
 _append_ref_commit_message() {
