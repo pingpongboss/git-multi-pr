@@ -29,17 +29,17 @@ status() {
     echo
   }
 
-  [[ -f $oksh ]] || {
+  command -v "$oksh" >/dev/null 2>&1 || {
     success=false
 
     echo "${bold}Missing dependency: ok.sh${normal}"
     echo "Run:"
     echo
-    echo -e "\tmkdir -p $HOME/bin ; curl -o $oksh https://raw.githubusercontent.com/whiteinge/ok.sh/master/ok.sh ; chmod +x $oksh"
+    echo -e "\tmkdir -p $HOME/bin ; curl -o $HOME/bin/$oksh https://raw.githubusercontent.com/whiteinge/ok.sh/master/ok.sh ; chmod +x $HOME/bin/$oksh"
     echo
   }
 
-  "$quick" || _ensure_github_permissions || {
+  "$success" && ("$quick" || _ensure_github_permissions || {
     success=false
 
     echo "${bold}Missing GitHub permissions${normal}"
@@ -53,13 +53,15 @@ status() {
     echo -e "\t    password <token>"
     echo
     echo "If the repo has single sign-on enabled, you must authorize this token with SSO (https://help.github.com/articles/authorizing-a-personal-access-token-for-use-with-a-saml-single-sign-on-organization/)."
-  }
+  })
 
   if $success; then
     echo "All required configurations and dependencies are installed."
     return 0
+  else
+    echo "Install the missing configurations and dependencies, and run \`$cmd status\` again."
+    return 1
   fi
-  return 1
 }
 
 _ensure_github_permissions() {
