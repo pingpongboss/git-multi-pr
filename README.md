@@ -200,11 +200,11 @@ Each one of your local changes should now be exported to separate PRs. Open them
 
 You can add reviewers to the PRs using Github's web interface. When you receive comments and need to make changes, follow the [Edit a previous change](#edit-a-previous-change) instructions to make those edits to the corresponding commits. Once those changes have been made, run `git-multi-pr export` again to update the PRs with a snapshot of your changes.
 
-**Do not merge the PRs using the web interface yet.**
+**Do not merge the PRs using the web interface.**
 
 ### Merge the PRs
 
-PRs are merged *in order* from oldest to newest, one at a time. Check the order of PRs with `git-multi-pr list`. You cannot merge the PRs out of order.
+PRs are merged *in order* from oldest to newest, one at a time. Check the order of PRs with `git-multi-pr list`. You cannot merge the PRs out of order, or with vanilla `git`.
 
 Once the oldest PR is approved, you can now use the tool to merge it. The tool will only merge one PR at a time.
 
