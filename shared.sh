@@ -7,7 +7,7 @@ underline=$(tput smul)
 normal=$(tput sgr0)
 
 cmd="git-multi-pr"
-oksh="$HOME/bin/ok.sh"
+oksh="ok.sh"
 
 REF_BRANCH_PREFIX="_git-multi-pr-"
 KEY_GIT_MULTI_BRANCH="GIT_MULTI_BRANCH"
