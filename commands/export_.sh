@@ -158,19 +158,32 @@ _create_ref_branch() {
 
   git diff HEAD.."$sha" | git apply --index &>/dev/null
 
-  _commit_to_new_snapshot
+  _commit_to_new_snapshot "$sha"
 }
 
 _commit_to_new_snapshot() {
   if _git_check_clean_state; then
     echo "No changes detected."
   else
+    local sha="$1"
     local count="$(_get_relative_non_merge_commits_count "$prev_ref_branch")"
+    local message="$(_get_new_snapshot_message "$sha" "$count")"
 
-    echo "Changes detected. Adding to ${bold}Snapshot $((count+1))${normal}."
+    echo "Changes detected. Adding commit ${bold}$message${normal}."
 
     git add . &>/dev/null
-    git commit -m "Snapshot $((count+1))" &>/dev/null
+    git commit -m "$message" &>/dev/null
+  fi
+}
+
+_get_new_snapshot_message() {
+  local sha="$1"
+  local count="$2"
+
+  if [ "$count" -eq "0" ]; then
+      echo "$(_git_get_commit_subject "$sha")"
+  else
+      echo "Snapshot $((count+1))"
   fi
 }
 
