@@ -19,7 +19,7 @@ status() {
     echo
   }
 
-  command -v jq >/dev/null 2>&1 || {
+  if ! [ -x "$(command -v jq)" ]; then
     success=false
 
     echo "${bold}Missing dependency: jq${normal}"
@@ -27,9 +27,9 @@ status() {
     echo
     echo -e "\tbrew install jq"
     echo
-  }
+  fi
 
-  command -v "$oksh" >/dev/null 2>&1 || {
+  if ! [ -x "$(command -v $oksh)" ]; then
     success=false
 
     echo "${bold}Missing dependency: ok.sh${normal}"
@@ -37,7 +37,7 @@ status() {
     echo
     echo -e "\tmkdir -p $HOME/bin ; curl -o $HOME/bin/$oksh https://raw.githubusercontent.com/whiteinge/ok.sh/master/ok.sh ; chmod +x $HOME/bin/$oksh"
     echo
-  }
+  fi
 
   "$success" && ("$quick" || _ensure_github_permissions || {
     success=false
